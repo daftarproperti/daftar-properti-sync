@@ -6,6 +6,9 @@ const fs = require('fs').promises;
 const express = require('express');
 const app = express();
 
+const { fetchPastListingsV0, registerV0Listener } = require('./listeners/v0');
+const { fetchPastListingsV1, registerV1Listener } = require('./listeners/v1');
+
 /**
  * Daftar Properti synchronizer abstracts away the details of how to get the blockchain events
  * and let users supply just a handler to listen for those events.
@@ -34,7 +37,8 @@ class DaftarPropertiSync {
         this.address = options.address;
         this.strictHash = options.strictHash;
         this.provider = options.provider;
-        this.contract = getContract(this.address, this.provider);
+        this.abiVersion = options.abiVersion;
+        this.contract = getContract(this.address, this.provider, this.abiVersion);
 
         this.fetchAll = options.fetchAll ?? false;
         this.fromBlockNumber = options.fromBlockNumber ?? 0;
@@ -54,20 +58,32 @@ class DaftarPropertiSync {
         if (!listingCollection) return;
 
         const filter = { listingId: listing.listingId };
-        const update = {
-            $set: listing,
-        };
-        const options = {
-            upsert: true,
-        };
-
         try {
-            const result = await listingCollection.updateOne(filter, update, options);
-
-            if (result.upsertedCount > 0) {
-                console.log(`Listing ${listing.listingId} inserted to mongodb, block number ${event.blockNumber}`);
-            } else {
-                console.log(`Listing ${listing.listingId} updated to mongodb, block number ${event.blockNumber}`);
+            switch (event.operationType) {
+                case "DELETE":
+                    const deleteResult = await listingCollection.deleteOne(filter);
+                    if (deleteResult.deletedCount > 0) {
+                        console.log(`Listing ${listing.listingId} deleted from mongodb, block number ${event.blockNumber}`);
+                    } else {
+                        console.log(`Listing ${listing.listingId} not found in mongodb for deletion, block number ${event.blockNumber}`);
+                    }
+                    break;
+    
+                case "ADD":
+                case "UPDATE":
+                    const update = { $set: listing };
+                    const options = { upsert: true };
+                    
+                    const updateResult = await listingCollection.updateOne(filter, update, options);
+                    if (updateResult.upsertedCount > 0) {
+                        console.log(`Listing ${listing.listingId} inserted to mongodb, block number ${event.blockNumber}`);
+                    } else {
+                        console.log(`Listing ${listing.listingId} updated in mongodb, block number ${event.blockNumber}`);
+                    }
+                    break;
+    
+                default:
+                    console.log(`Invalid operationType: ${event.operationType} for listing ${listing.listingId}, block number ${event.blockNumber}`);
             }
         } catch (error) {
             throw (error);
@@ -75,75 +91,28 @@ class DaftarPropertiSync {
     }
 
     async fetchPastListings(blockNumber = 0) {
-        const newListingEvents = blockNumber === 0
-            ? await this.contract.queryFilter("NewListing")
-            : await this.contract.queryFilter("NewListing", blockNumber);
+        const fetchListingsMap = {
+            0: fetchPastListingsV0,
+            1: fetchPastListingsV1
+        };
+        
+        const fetchPastListings = fetchListingsMap[this.abiVersion];
 
-        await Promise.all(newListingEvents.map(async event => {
-            console.debug(`received listing id: ${event.args.id} in block number: ${event.blockNumber}`);
+        if (!fetchPastListings) {
+            throw new Error(`Unsupported abiVersion: ${this.abiVersion}`);
+        }
 
-            const listing = await getListingFromURL({
-                id: event.args.id,
-                cityId: event.args.cityId,
-                offChainLink: event.args.offChainLink,
-                dataHash: event.args.dataHash,
-                timestamp: event.args.timestamp,
-                blockNumber: event.blockNumber
-            }, this.errorHandling, this.strictHash);
-
-            if (listing) {
-                withRetries(async () => {
-                    await this.listingHandler(listing, {
-                        id: event.args.id,
-                        cityId: event.args.cityId,
-                        offChainLink: event.args.offChainLink,
-                        dataHash: event.args.dataHash,
-                        timestamp: event.args.timestamp,
-                        blockNumber: event.blockNumber
-                    });
-
-                    await this.writeBlockNumberToFile(event.blockNumber);
-                }, {
-                    blockNumber: event.blockNumber,
-                    offChainLink: event.args.offChainLink,
-                }, this.errorHandling);
-            }
-        }));
-
-        const verifiedEvents = blockNumber === 0
-            ? await this.contract.queryFilter("ListingVerified")
-            : await this.contract.queryFilter("ListingVerified", blockNumber);
-
-        await Promise.all(verifiedEvents.map(async event => {
-            console.debug(`received listing id: ${event.args.id} in block number: ${event.blockNumber}`);
-
-            const listing = await getListingFromURL({
-                id: event.args.id,
-                cityId: event.args.cityId,
-                offChainLink: event.args.offChainLink,
-                dataHash: event.args.dataHash,
-                timestamp: event.args.timestamp,
-                blockNumber: event.blockNumber
-            }, this.errorHandling, this.strictHash);
-
-            if (listing) {
-                withRetries(async () => {
-                    await this.listingHandler(listing, {
-                        id: event.args.id,
-                        cityId: event.args.cityId,
-                        offChainLink: event.args.offChainLink,
-                        dataHash: event.args.dataHash,
-                        timestamp: event.args.timestamp,
-                        blockNumber: event.blockNumber
-                    });
-
-                    await this.writeBlockNumberToFile(event.blockNumber);
-                }, {
-                    blockNumber: event.blockNumber,
-                    offChainLink: event.args.offChainLink,
-                }, this.errorHandling);
-            }
-        }));
+        await fetchPastListings(
+            blockNumber,
+            this.contract,
+            getListingFromURL,
+            this.listingHandler,
+            withRetries,
+            this.writeBlockNumberToFile.bind(this),
+            handleErr,
+            this.strictHash,
+            this.errorHandling
+        );
     }
 
     async fetchMissedListings() {
@@ -202,61 +171,27 @@ class DaftarPropertiSync {
 
         await this.fetchMissedListings();
 
-        let eventProcessing = Promise.resolve();
-
-        this.contract.on("NewListing", (id, cityId, offChainLink, dataHash, timestamp, payload) => {
-            eventProcessing = eventProcessing.then(async () => {
-                console.debug(`received listing id: ${id} in block number: ${payload.log.blockNumber}`);
-
-                const listing = await getListingFromURL({ id, cityId, offChainLink, dataHash, timestamp, blockNumber: payload.log.blockNumber }, this.errorHandling, this.strictHash);
-                if (listing) {
-                    withRetries(async () => {
-                        await this.listingHandler(listing, {
-                            id,
-                            cityId,
-                            offChainLink,
-                            dataHash,
-                            timestamp,
-                            blockNumber: payload.log.blockNumber
-                        });
-
-                        await this.writeBlockNumberToFile(payload.log.blockNumber);
-                    }, {
-                        blockNumber: payload.log.blockNumber,
-                        offChainLink: offChainLink,
-                    }, this.errorHandling);
-                }
-            }).catch(error => {
-                handleErr(error, { blockNumber: payload.log.blockNumber, offChainLink: payload.log.offChainLink }, this.errorHandling);
-            });
-        });
-
-        this.contract.on("ListingVerified", (id, cityId, offChainLink, dataHash, timestamp, payload) => {
-            eventProcessing = eventProcessing.then(async () => {
-                console.debug(`received listing id: ${id} in block number: ${payload.log.blockNumber}`);
-
-                const listing = await getListingFromURL({ id, cityId, offChainLink, dataHash, timestamp, blockNumber: payload.log.blockNumber }, this.errorHandling, this.strictHash);
-                if (listing) {
-                    withRetries(async () => {
-                        await this.listingHandler(listing, {
-                            id,
-                            cityId,
-                            offChainLink,
-                            dataHash,
-                            timestamp,
-                            blockNumber: payload.log.blockNumber
-                        });
-
-                        await this.writeBlockNumberToFile(payload.log.blockNumber);
-                    }, {
-                        blockNumber: payload.log.blockNumber,
-                        offChainLink: offChainLink,
-                    }, this.errorHandling);
-                }
-            }).catch(error => {
-                handleErr(error, { blockNumber: payload.log.blockNumber, offChainLink: payload.log.offChainLink }, this.errorHandling);
-            });
-        });
+        const listenerMap = {
+            0: registerV0Listener,
+            1: registerV1Listener
+        };
+    
+        const registerListener = listenerMap[this.abiVersion];
+        
+        if (!registerListener) {
+            throw new Error(`Unsupported abiVersion: ${this.abiVersion}`);
+        }
+    
+        registerListener(
+            this.contract,
+            getListingFromURL,
+            this.listingHandler,
+            withRetries,
+            this.writeBlockNumberToFile.bind(this),
+            handleErr,
+            this.strictHash,
+            this.errorHandling
+        );
 
         app.listen(this.port, () => {
             console.log(`Web interface running at http://localhost:${this.port}`);
@@ -290,11 +225,16 @@ function createInstance(options) {
 }
 
 function validateOptions(options) {
-    const requiredFields = ['provider', 'listingHandler'];
+    const requiredFields = ['provider', 'abiVersion','listingHandler'];
     for (const field of requiredFields) {
         if (!(field in options)) {
             throw new Error(`Required field '${field}' is missing in options.`);
         }
+    }
+
+    // Sanitize AbiVersion options
+    if (typeof options.abiVersion !== 'number' || isNaN(options.abiVersion)) {
+        throw new Error(`Invalid 'abiVersion'. It must be a valid number`);
     }
 }
 

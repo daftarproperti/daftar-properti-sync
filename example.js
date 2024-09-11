@@ -27,6 +27,7 @@ async function main() {
             provider: provider,
             fetchAll: false,
             fromBlockNumber: 0,
+            abiVersion: 0,
             fetchLastKnownBlockNumber: fetchLastKnownBlockNumber,
             listingHandler: listingHandler,
             errorHandling: {
