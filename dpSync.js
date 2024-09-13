@@ -96,13 +96,13 @@ class DaftarPropertiSync {
             1: fetchPastListingsV1
         };
         
-        const fetchPastListings = fetchListingsMap[this.abiVersion];
+        const fetchPastListingsFunc = fetchListingsMap[this.abiVersion];
 
-        if (!fetchPastListings) {
+        if (!fetchPastListingsFunc) {
             throw new Error(`Unsupported abiVersion: ${this.abiVersion}`);
         }
 
-        await fetchPastListings(
+        await fetchPastListingsFunc(
             blockNumber,
             this.contract,
             getListingFromURL,

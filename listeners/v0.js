@@ -1,4 +1,4 @@
-module.exports.fetchPastListingsV1 = async function(blockNumber, contract, getListingFromURL, listingHandler, withRetries, writeBlockNumberToFile, handleErr, strictHash, errorHandling) {
+module.exports.fetchPastListingsV0 = async function(blockNumber, contract, getListingFromURL, listingHandler, withRetries, writeBlockNumberToFile, handleErr, strictHash, errorHandling) {
     const newListingEvents = blockNumber === 0
             ? await contract.queryFilter("NewListing")
             : await contract.queryFilter("NewListing", blockNumber);
@@ -36,7 +36,7 @@ module.exports.fetchPastListingsV1 = async function(blockNumber, contract, getLi
     }));
 };
 
-module.exports.registerV1Listener = function(contract, getListingFromURL, listingHandler, withRetries, writeBlockNumberToFile, handleErr, strictHash, errorHandling) {
+module.exports.registerV0Listener = function(contract, getListingFromURL, listingHandler, withRetries, writeBlockNumberToFile, handleErr, strictHash, errorHandling) {
     let eventProcessing = Promise.resolve();
 
     contract.on("NewListing", (id, cityId, offChainLink, dataHash, timestamp, payload) => {
