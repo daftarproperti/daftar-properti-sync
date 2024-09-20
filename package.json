@@ -1,10 +1,21 @@
 {
     "name": "daftar-properti-sync",
     "version": "1.0.0",
-    "main": "dpSync.js",
+    "main": "js-generated/dpSync.js",
+    "types": ".d.ts/dpSync.d.ts",
     "dependencies": {
         "dotenv": "^10.0.0",
         "ethers": "^6.12.1",
-        "express": "^4.19.2"
+        "express": "^4.19.2",
+        "node-fetch": "^2.7.0"
+    },
+    "scripts": {
+        "build": "tsc",
+        "prepare": "tsc"
+    },
+    "devDependencies": {
+        "@types/express": "^4.17.21",
+        "@types/node-fetch": "^2.6.11",
+        "typescript": "^5.6.2"
     }
 }

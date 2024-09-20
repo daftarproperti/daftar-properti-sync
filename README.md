@@ -6,7 +6,7 @@ Library to ease the use for Daftar Properti's data
 
 To use, simply add below lines to your code:
 ```
-const { createInstance } = require('./dp-sync/dpSync');
+const { createInstance } = require('daftar-properti-sync');
 ```
 
 ## Usage
@@ -42,7 +42,4 @@ To use DP Sync Library you will need to define following options:
 --- slackWebhookURL: [required] Slack webhook url to send message to
 -- errorHandler: define this to customly handle incoming error
 
-See `example.js` for sample code
-
-
-
+See `example.ts` for sample code

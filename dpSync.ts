@@ -1,39 +1,33 @@
-const { getContract } = require("./contract");
-const { getListingFromURL, withRetries } = require("./fetch");
-const { handleErr } = require("./errorHandler");
-const fs = require('fs').promises;
+import { getContract } from './contract';
+import { getListingFromURL, withRetries } from './fetch';
+import { handleErr } from './errorHandler';
+import { fetchPastListingsV0, registerV0Listener } from './listeners/v0';
+import { fetchPastListingsV1, registerV1Listener } from './listeners/v1';
+import { DaftarPropertiSyncOptions, ListingHandler } from './interfaces';
+import express from 'express';
+import fs from 'fs/promises';
+import { FetchListingsFunction, RegisterListenerFunction } from './types';
 
-const express = require('express');
 const app = express();
 
-const { fetchPastListingsV0, registerV0Listener } = require('./listeners/v0');
-const { fetchPastListingsV1, registerV1Listener } = require('./listeners/v1');
+export class DaftarPropertiSync {
+    logs: string[] = [];
+    lastProcessedBlock: number = 0;
+    port: number;
+    address: string;
+    strictHash: boolean;
+    provider: any;
+    abiVersion: number;
+    contract: any;
+    fetchAll: boolean;
+    fromBlockNumber: number;
+    fetchLastKnownBlockNumber: (() => Promise<number>) | null;
+    listingCollection: any;
+    listingHandler: ListingHandler;
+    errorHandling: any;
 
-/**
- * Daftar Properti synchronizer abstracts away the details of how to get the blockchain events
- * and let users supply just a handler to listen for those events.
- *
- * @description
- * Common use cases:
- *
- * - Supply `options.listingHandler` to listen for listing events and act accordingly,
- *   e.g. sync to custom DB, send notification, etc.
- * - Supply `options.listingCollection` which is a mongodb Collection and keep raw
- *   listings data.
- */
-class DaftarPropertiSync {
-    /**
-     * Creates an instance of Daftar Properti synchronizer.
-     *
-     * @param {Object} options - The options for configuring the DaftarPropertiSync instance.
-     * @param {Collection} [options.collection] - The mongodb collection to sync to.
-     * @param {Function} [options.listingHandler] - Async function to handle listing events.
-     */
-    constructor(options) {
-        this.logs = [];
-        this.lastProcessedBlock = 0;
+    constructor(options: DaftarPropertiSyncOptions) {
         this.port = options.port ?? 8080;
-
         this.address = options.address;
         this.strictHash = options.strictHash;
         this.provider = options.provider;
@@ -43,10 +37,7 @@ class DaftarPropertiSync {
         this.fetchAll = options.fetchAll ?? false;
         this.fromBlockNumber = options.fromBlockNumber ?? 0;
         this.fetchLastKnownBlockNumber = options.fetchLastKnownBlockNumber ?? null;
-
         this.listingCollection = options.listingCollection;
-        // To handle a listing event, we do built-in handler first (mongo)
-        // and then the user supplied custom handler.
         this.listingHandler = async (listing, event) => {
             await this.syncToMongo(this.listingCollection, listing, event);
             await options.listingHandler(listing, event);
@@ -54,13 +45,13 @@ class DaftarPropertiSync {
         this.errorHandling = options.errorHandling;
     }
 
-    async syncToMongo(listingCollection, listing, event) {
+    async syncToMongo(listingCollection: any, listing: any, event: any): Promise<void> {
         if (!listingCollection) return;
 
         const filter = { listingId: listing.listingId };
         try {
             switch (event.operationType) {
-                case "DELETE":
+                case 'DELETE':
                     const deleteResult = await listingCollection.deleteOne(filter);
                     if (deleteResult.deletedCount > 0) {
                         console.log(`Listing ${listing.listingId} deleted from mongodb, block number ${event.blockNumber}`);
@@ -68,12 +59,12 @@ class DaftarPropertiSync {
                         console.log(`Listing ${listing.listingId} not found in mongodb for deletion, block number ${event.blockNumber}`);
                     }
                     break;
-    
-                case "ADD":
-                case "UPDATE":
+
+                case 'ADD':
+                case 'UPDATE':
                     const update = { $set: listing };
                     const options = { upsert: true };
-                    
+
                     const updateResult = await listingCollection.updateOne(filter, update, options);
                     if (updateResult.upsertedCount > 0) {
                         console.log(`Listing ${listing.listingId} inserted to mongodb, block number ${event.blockNumber}`);
@@ -81,26 +72,22 @@ class DaftarPropertiSync {
                         console.log(`Listing ${listing.listingId} updated in mongodb, block number ${event.blockNumber}`);
                     }
                     break;
-    
+
                 default:
                     console.log(`Invalid operationType: ${event.operationType} for listing ${listing.listingId}, block number ${event.blockNumber}`);
             }
         } catch (error) {
-            throw (error);
+            throw error;
         }
     }
 
-    async fetchPastListings(blockNumber = 0) {
-        const fetchListingsMap = {
+    async fetchPastListings(blockNumber: number = 0): Promise<void> {
+        const fetchListingsMap: Record<number, FetchListingsFunction> = {
             0: fetchPastListingsV0,
             1: fetchPastListingsV1
         };
-        
-        const fetchPastListingsFunc = fetchListingsMap[this.abiVersion];
 
-        if (!fetchPastListingsFunc) {
-            throw new Error(`Unsupported abiVersion: ${this.abiVersion}`);
-        }
+        const fetchPastListingsFunc = fetchListingsMap[this.abiVersion];
 
         await fetchPastListingsFunc(
             blockNumber,
@@ -109,14 +96,13 @@ class DaftarPropertiSync {
             this.listingHandler,
             withRetries,
             this.writeBlockNumberToFile.bind(this),
-            handleErr,
             this.strictHash,
             this.errorHandling
         );
     }
 
-    async fetchMissedListings() {
-        const blockNumber = await this.readBlockNumberFromFile();
+    async fetchMissedListings(): Promise<void> {
+        let blockNumber = await this.readBlockNumberFromFile();
         if (this.fetchLastKnownBlockNumber) {
             blockNumber = await this.fetchLastKnownBlockNumber();
         }
@@ -124,7 +110,7 @@ class DaftarPropertiSync {
         await this.fetchPastListings(blockNumber);
     }
 
-    async readBlockNumberFromFile() {
+    async readBlockNumberFromFile(): Promise<number> {
         try {
             const data = await fs.readFile('./lastKnownBlockNumber.txt', 'utf8');
             return data === '' ? 0 : parseInt(data, 10);
@@ -133,7 +119,7 @@ class DaftarPropertiSync {
         }
     }
 
-    async writeBlockNumberToFile(blockNumber) {
+    async writeBlockNumberToFile(blockNumber: number): Promise<void> {
         try {
             const data = await fs.readFile('./lastKnownBlockNumber.txt', 'utf8');
             const lastKnownBlockNumber = parseInt(data, 10);
@@ -143,9 +129,9 @@ class DaftarPropertiSync {
                 return;
             }
         } catch (error) {
-            if (error.code !== 'ENOENT') {
+            if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
                 throw error;
-            }
+              }
         }
 
         this.lastProcessedBlock = blockNumber;
@@ -153,10 +139,10 @@ class DaftarPropertiSync {
         console.debug('Block number written to file:', blockNumber);
     }
 
-    async start() {
+    async start(): Promise<void> {
         const originalConsoleLog = console.log;
-        console.log = (...args) => {
-            const logString = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : arg).join(' ');
+        console.log = (...args: any[]) => {
+            const logString = args.map(arg => (typeof arg === 'object' ? JSON.stringify(arg) : arg)).join(' ');
             this.logs.push(logString);
             originalConsoleLog.apply(console, args);
         };
@@ -171,17 +157,17 @@ class DaftarPropertiSync {
 
         await this.fetchMissedListings();
 
-        const listenerMap = {
+        const listenerMap: Record<number, RegisterListenerFunction> = {
             0: registerV0Listener,
             1: registerV1Listener
         };
-    
+
         const registerListener = listenerMap[this.abiVersion];
-        
+
         if (!registerListener) {
             throw new Error(`Unsupported abiVersion: ${this.abiVersion}`);
         }
-    
+
         registerListener(
             this.contract,
             getListingFromURL,
@@ -219,25 +205,20 @@ class DaftarPropertiSync {
     }
 }
 
-function createInstance(options) {
+export function createInstance(options: DaftarPropertiSyncOptions): DaftarPropertiSync {
     validateOptions(options);
     return new DaftarPropertiSync(options);
 }
 
-function validateOptions(options) {
-    const requiredFields = ['provider', 'abiVersion','listingHandler'];
+function validateOptions(options: DaftarPropertiSyncOptions): void {
+    const requiredFields = ['provider', 'abiVersion', 'listingHandler'];
     for (const field of requiredFields) {
         if (!(field in options)) {
             throw new Error(`Required field '${field}' is missing in options.`);
         }
     }
 
-    // Sanitize AbiVersion options
     if (typeof options.abiVersion !== 'number' || isNaN(options.abiVersion)) {
         throw new Error(`Invalid 'abiVersion'. It must be a valid number`);
     }
 }
-
-module.exports = {
-    createInstance
-};
