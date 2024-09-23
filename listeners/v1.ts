@@ -158,10 +158,10 @@ export function registerV1Listener(
     handleErr: HandleError,
     strictHash: boolean,
     errorHandling: any
-): void {
+): () => void {
     let eventProcessing = Promise.resolve();
 
-    contract.on('NewListing', (id, cityId, offChainLink, dataHash, timestamp, payload) => {
+    const newListingListener = (id: string, cityId: string, offChainLink: string, dataHash: string, timestamp: number, payload: any) => {
         eventProcessing = eventProcessing.then(async () => {
             console.debug(`received listing id: ${id} in block number: ${payload.log.blockNumber}`);
 
@@ -195,9 +195,10 @@ export function registerV1Listener(
         }).catch(error => {
             handleErr(error, { blockNumber: payload.log.blockNumber, offChainLink: payload.log.offChainLink }, errorHandling);
         });
-    });
+    }
 
-    contract.on('ListingUpdated', (id, cityId, offChainLink, dataHash, timestamp, payload) => {
+
+    const listingUpdatedListener = (id: string, cityId: string, offChainLink: string, dataHash: string, timestamp: number, payload: any) => {
         eventProcessing = eventProcessing.then(async () => {
             console.debug(`received update for listing id: ${id} in block number: ${payload.log.blockNumber}`);
 
@@ -231,9 +232,9 @@ export function registerV1Listener(
         }).catch(error => {
             handleErr(error, { blockNumber: payload.log.blockNumber, offChainLink: payload.log.offChainLink }, errorHandling);
         });
-    });
+    };
 
-    contract.on('ListingDeleted', (id, cityId, offChainLink, dataHash, timestamp, payload) => {
+    const listingDeletedListener = (id: string, cityId: string, offChainLink: string, dataHash: string, timestamp: number, payload: any) => {
         eventProcessing = eventProcessing.then(async () => {
             console.debug(`received deletion for listing id: ${id} in block number: ${payload.log.blockNumber}`);
 
@@ -267,5 +268,15 @@ export function registerV1Listener(
         }).catch(error => {
             handleErr(error, { blockNumber: payload.log.blockNumber, offChainLink: payload.log.offChainLink }, errorHandling);
         });
-    });
+    };
+
+    contract.on('NewListing', newListingListener);
+    contract.on('ListingUpdated', listingUpdatedListener);
+    contract.on('ListingDeleted', listingDeletedListener);
+
+    return () => {
+        contract.off('NewListing');
+        contract.off('ListingUpdated');
+        contract.off('ListingDeleted');
+    };
 }

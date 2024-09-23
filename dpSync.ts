@@ -26,6 +26,8 @@ export class DaftarPropertiSync {
     listingHandler: ListingHandler;
     errorHandling: any;
 
+    private currentListeners: any[] = [];
+
     constructor(options: DaftarPropertiSyncOptions) {
         this.port = options.port ?? 8080;
         this.address = options.address;
@@ -43,6 +45,57 @@ export class DaftarPropertiSync {
             await options.listingHandler(listing, event);
         };
         this.errorHandling = options.errorHandling;
+    }
+
+    initializeWebSocket() {
+        const reconnect = () => {
+            console.warn('Reconnecting to websocket . . .');
+
+            this.currentListeners.forEach(unregister => unregister());
+            this.currentListeners = [];
+            
+            this.registerListeners();
+        };
+
+        this.provider._websocket.on('close', () => {
+            console.error('WebSocket connection closed.');
+
+            // Reconnect after 5 seconds to wait for pending tasks to finish
+            setTimeout(reconnect, 5000);
+        });
+
+        this.provider._websocket.on('error', (err: Error) => {
+            console.error('WebSocket error:', err);
+
+            // Reconnect after 5 seconds to wait for pending tasks to finish
+            setTimeout(reconnect, 5000);
+        });
+    }
+
+    registerListeners() {
+        const listenerMap: Record<number, RegisterListenerFunction> = {
+            0: registerV0Listener,
+            1: registerV1Listener
+        };
+
+        const registerListener = listenerMap[this.abiVersion];
+
+        if (!registerListener) {
+            throw new Error(`Unsupported abiVersion: ${this.abiVersion}`);
+        }
+
+        const unregister = registerListener(
+            this.contract,
+            getListingFromURL,
+            this.listingHandler,
+            withRetries,
+            this.writeBlockNumberToFile.bind(this),
+            handleErr,
+            this.strictHash,
+            this.errorHandling
+        );
+    
+        this.currentListeners.push(unregister);
     }
 
     async syncToMongo(listingCollection: any, listing: any, event: any): Promise<void> {
@@ -157,27 +210,7 @@ export class DaftarPropertiSync {
 
         await this.fetchMissedListings();
 
-        const listenerMap: Record<number, RegisterListenerFunction> = {
-            0: registerV0Listener,
-            1: registerV1Listener
-        };
-
-        const registerListener = listenerMap[this.abiVersion];
-
-        if (!registerListener) {
-            throw new Error(`Unsupported abiVersion: ${this.abiVersion}`);
-        }
-
-        registerListener(
-            this.contract,
-            getListingFromURL,
-            this.listingHandler,
-            withRetries,
-            this.writeBlockNumberToFile.bind(this),
-            handleErr,
-            this.strictHash,
-            this.errorHandling
-        );
+        this.registerListeners();
 
         app.listen(this.port, () => {
             console.log(`Web interface running at http://localhost:${this.port}`);
