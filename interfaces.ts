@@ -1,11 +1,9 @@
 import { EventDetails, EventContext } from "./types";
 
-import { Provider } from 'ethers';
-
 export interface DaftarPropertiSyncOptions {
   port?: number;
   address: string;
-  provider: Provider;
+  providerHost?: string;
   abiVersion: number;
   fetchAll?: boolean;
   fromBlockNumber?: number;

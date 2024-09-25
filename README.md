@@ -24,8 +24,8 @@ To use DP Sync Library you will need to define following options:
 -- contract address for the blockchain
 - strictHash
 -- true to stop processing if unmatched hash data exist.
-- provider [required]
--- provider to consume blockchain data.
+- providerHost [required]
+-- pass provider url to consume blockchain data.
 - abiVersion [required]
 -- specify which contract abi version will be used
 - fetchAll

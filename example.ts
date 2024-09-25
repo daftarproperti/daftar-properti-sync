@@ -1,5 +1,4 @@
 import { createInstance } from './dpSync';
-import { ethers } from 'ethers';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -35,14 +34,12 @@ async function main(): Promise<void> {
             throw new Error("Missing environment variables. Please set INFURA_API_KEY, ERROR_NOTIF_CHANNEL, SLACK_WEBHOOK_URL, or CONTRACT_ADDRESS.");
         }
 
-        const provider = new ethers.WebSocketProvider(`wss://polygon-mainnet.infura.io/ws/v3/${INFURA_API_KEY}`);
-
         const options = {
             port: 8080,
-            provider: provider,
             address: CONTRACT_ADDRESS,
             fetchAll: false,
             strictHash: true,
+            providerHost: `polygon-mainnet.infura.io/ws/v3/${INFURA_API_KEY}`,
             fromBlockNumber: 0,
             abiVersion: 0,
             fetchLastKnownBlockNumber: fetchLastKnownBlockNumber,

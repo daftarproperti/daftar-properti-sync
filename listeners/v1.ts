@@ -158,8 +158,13 @@ export function registerV1Listener(
     handleErr: HandleError,
     strictHash: boolean,
     errorHandling: any
-): () => void {
+): void {
     let eventProcessing = Promise.resolve();
+
+    // Remove existing listeners before adding new ones
+    contract.removeAllListeners('NewListing');
+    contract.removeAllListeners('ListingUpdated');
+    contract.removeAllListeners('ListingDeleted');
 
     const newListingListener = (id: string, cityId: string, offChainLink: string, dataHash: string, timestamp: number, payload: any) => {
         eventProcessing = eventProcessing.then(async () => {
@@ -273,10 +278,4 @@ export function registerV1Listener(
     contract.on('NewListing', newListingListener);
     contract.on('ListingUpdated', listingUpdatedListener);
     contract.on('ListingDeleted', listingDeletedListener);
-
-    return () => {
-        contract.off('NewListing');
-        contract.off('ListingUpdated');
-        contract.off('ListingDeleted');
-    };
 }

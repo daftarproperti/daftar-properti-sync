@@ -1,4 +1,5 @@
 import { getContract } from './contract';
+import { ethers } from 'ethers';
 import { getListingFromURL, withRetries } from './fetch';
 import { handleErr } from './errorHandler';
 import { fetchPastListingsV0, registerV0Listener } from './listeners/v0';
@@ -6,6 +7,7 @@ import { fetchPastListingsV1, registerV1Listener } from './listeners/v1';
 import { DaftarPropertiSyncOptions, ListingHandler } from './interfaces';
 import express from 'express';
 import fs from 'fs/promises';
+import WebSocket from 'ws';
 import { FetchListingsFunction, RegisterListenerFunction } from './types';
 
 const app = express();
@@ -17,6 +19,7 @@ export class DaftarPropertiSync {
     address: string;
     strictHash: boolean;
     provider: any;
+    providerHost: string;
     abiVersion: number;
     contract: any;
     fetchAll: boolean;
@@ -26,13 +29,15 @@ export class DaftarPropertiSync {
     listingHandler: ListingHandler;
     errorHandling: any;
 
-    private currentListeners: any[] = [];
-
     constructor(options: DaftarPropertiSyncOptions) {
         this.port = options.port ?? 8080;
         this.address = options.address;
         this.strictHash = options.strictHash;
-        this.provider = options.provider;
+   
+        this.providerHost = options.providerHost || "";
+        
+        this.provider = new ethers.WebSocketProvider(this.createWebSocket());
+
         this.abiVersion = options.abiVersion;
         this.contract = getContract(this.address, this.provider, this.abiVersion);
 
@@ -47,29 +52,28 @@ export class DaftarPropertiSync {
         this.errorHandling = options.errorHandling;
     }
 
-    initializeWebSocket() {
+    createWebSocket() {
         const reconnect = () => {
-            console.warn('Reconnecting to websocket . . .');
-
-            this.currentListeners.forEach(unregister => unregister());
-            this.currentListeners = [];
-            
             this.registerListeners();
+            console.log('Reconnected to websocket');
         };
 
-        this.provider._websocket.on('close', () => {
-            console.error('WebSocket connection closed.');
-
-            // Reconnect after 5 seconds to wait for pending tasks to finish
-            setTimeout(reconnect, 5000);
-        });
-
-        this.provider._websocket.on('error', (err: Error) => {
-            console.error('WebSocket error:', err);
-
-            // Reconnect after 5 seconds to wait for pending tasks to finish
-            setTimeout(reconnect, 5000);
-        });
+        const webSocket = new WebSocket(`wss://`+this.providerHost);
+  
+        webSocket.onclose = () => {
+            console.log("Websocket disconnected. Reconnecting . . .");
+            setTimeout(() => {
+                this.provider = new ethers.WebSocketProvider(this.createWebSocket());
+                this.contract = getContract(this.address, this.provider, this.abiVersion);
+                reconnect();
+            }, 3000);
+        };
+  
+        webSocket.onerror = (error) => {
+            console.log("WebSocket error: ", error);
+        };
+    
+        return webSocket;
     }
 
     registerListeners() {
@@ -84,7 +88,7 @@ export class DaftarPropertiSync {
             throw new Error(`Unsupported abiVersion: ${this.abiVersion}`);
         }
 
-        const unregister = registerListener(
+        registerListener(
             this.contract,
             getListingFromURL,
             this.listingHandler,
@@ -94,8 +98,6 @@ export class DaftarPropertiSync {
             this.strictHash,
             this.errorHandling
         );
-    
-        this.currentListeners.push(unregister);
     }
 
     async syncToMongo(listingCollection: any, listing: any, event: any): Promise<void> {
@@ -244,7 +246,7 @@ export function createInstance(options: DaftarPropertiSyncOptions): DaftarProper
 }
 
 function validateOptions(options: DaftarPropertiSyncOptions): void {
-    const requiredFields = ['provider', 'abiVersion', 'listingHandler'];
+    const requiredFields = ['providerHost', 'abiVersion', 'listingHandler'];
     for (const field of requiredFields) {
         if (!(field in options)) {
             throw new Error(`Required field '${field}' is missing in options.`);
