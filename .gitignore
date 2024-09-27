@@ -2,4 +2,8 @@ node_modules/
 
 # Ignore generated files
 js-generated/
-.d.ts/
+
+# We are supposed to ignore .d.ts, but somehow this makes .d.ts disappear when
+# this package is installed from another package using npm install.
+# So workaround is don't add this directory to gitignore.
+# .d.ts
