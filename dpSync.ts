@@ -47,7 +47,9 @@ export class DaftarPropertiSync {
         this.listingCollection = options.listingCollection;
         this.listingHandler = async (listing, event) => {
             await this.syncToMongo(this.listingCollection, listing, event);
-            await options.listingHandler(listing, event);
+            if (typeof options.listingHandler === 'function') {
+                await options.listingHandler(listing, event);
+            }
         };
         this.errorHandling = options.errorHandling;
     }
@@ -180,7 +182,6 @@ export class DaftarPropertiSync {
             const lastKnownBlockNumber = parseInt(data, 10);
 
             if (lastKnownBlockNumber >= blockNumber) {
-                console.debug('Skipping write: Block number in file is greater or equal to the current block number.');
                 return;
             }
         } catch (error) {
@@ -191,7 +192,6 @@ export class DaftarPropertiSync {
 
         this.lastProcessedBlock = blockNumber;
         await fs.writeFile('./lastKnownBlockNumber.txt', blockNumber.toString(), { flag: 'w', encoding: 'utf8' });
-        console.debug('Block number written to file:', blockNumber);
     }
 
     async start(): Promise<void> {
