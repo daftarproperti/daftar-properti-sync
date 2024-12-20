@@ -37,7 +37,7 @@ export class Broker {
             if (!broadcastId) {
                 const broadcastEntry = {
                     dp_id: listing.listingIdStr,
-                    blockNumber: event.blockNumber,
+                    block_number: event.blockNumber,
                     channel: channelName,
                     listing: listing,
                     event: event,
