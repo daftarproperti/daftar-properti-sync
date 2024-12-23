@@ -36,7 +36,11 @@ export function handleTwitter(channelOption: ChannelOption) {
                 .map((file: string) => path.join(listingImageDir, file));
 
             const mediaIds = [];
-            for (const imagePath of imagePaths) {
+            // Twitter allows a maximum of 4 media items per tweet
+            const maxMediaUploadLimit = 4;
+            const limitedImagePaths = imagePaths.slice(0, maxMediaUploadLimit);
+
+            for (const imagePath of limitedImagePaths) {
                 try {
                     const mediaId = await twitterClient.v1.uploadMedia(imagePath);
                     mediaIds.push(mediaId);

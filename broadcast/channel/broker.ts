@@ -173,15 +173,19 @@ export class Broker {
     private async cleanupImages(listingIdStr: string): Promise<void> {
         const listingImageDir = `${DOWNLOAD_IMAGES_DIRECTORY}/${listingIdStr}`;
         try {
-            const imagePaths = fs
-                .readdirSync(listingImageDir)
-                .filter((file: string) => /\.(jpg|jpeg|png|gif)$/i.test(file))
-                .map((file: string) => path.join(listingImageDir, file));
-
-            for (const imagePath of imagePaths) {
-                fs.unlinkSync(imagePath);
+            if (fs.existsSync(listingImageDir)) {
+                const imagePaths = fs
+                    .readdirSync(listingImageDir)
+                    .filter((file: string) => /\.(jpg|jpeg|png|gif)$/i.test(file))
+                    .map((file: string) => path.join(listingImageDir, file));
+    
+                for (const imagePath of imagePaths) {
+                    fs.unlinkSync(imagePath);
+                }
+                fs.rmdirSync(listingImageDir, { recursive: true });
+            } else {
+                console.warn(`Directory does not exist for listing: ${listingIdStr}. Skipping . . .`);
             }
-            fs.rmdirSync(listingImageDir, { recursive: true });
         } catch (cleanupError) {
             console.warn(`Failed to clean up images for listing: ${listingIdStr}`, cleanupError);
         }

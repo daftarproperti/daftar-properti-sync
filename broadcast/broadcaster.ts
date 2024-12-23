@@ -47,10 +47,13 @@ export class Broadcaster {
             return;
         }
 
+        const sanitizedListing = this.sanitizeInput(listing);
+        const sanitizedEvent = this.sanitizeInput(event);
+
         try {
-            await this.agenda.now('broadcast', { listing, event });
+            await this.agenda.now('broadcast', { listing: sanitizedListing, event: sanitizedEvent });
         } catch (error) {
-            console.error("Error queueing broadcast job: ", error);
+            console.error(`Error queueing broadcast job for block number: ${event.blockNumber}, listing id: ${listing.listingIdStr}. error:  `, error);
         }
     }
 
@@ -78,5 +81,26 @@ export class Broadcaster {
 
         await this.agenda.start();
         await this.retryFailedBroadcast();
+    }
+
+    private sanitizeInput(input: any) {
+        // Since BSON Serializer does not natively support BigINT, sanitize the value
+        const sanitizeField = (value: any): any => {
+            if (typeof value === "bigint") {
+                return value.toString();
+            }
+            if (typeof value === "number" && !Number.isSafeInteger(value)) {
+                return value.toString();
+            }
+
+            if (typeof value === "object" && value !== null) {
+                for (const key in value) {
+                    value[key] = sanitizeField(value[key]);
+                }
+            }
+            return value;
+        };
+
+        return sanitizeField({ ...input });
     }
 }
