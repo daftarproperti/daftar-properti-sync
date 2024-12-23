@@ -1,7 +1,8 @@
 import { Contract, EventLog, Log } from 'ethers';
-import { FetchListingFromURL, ListingHandler, WithRetries, WriteBlockNumberToFile, HandleError } from '../interfaces';
+import { FetchListingFromURL, ListingHandler, WithRetries, WriteBlockNumberToFile, HandleError, GetListingUpdatedAt } from '../interfaces';
 import { EventDetails } from '../types';
 import { Broadcaster } from '../broadcast/broadcaster';
+import { shouldIgnore } from './v1';
 
 function isEventLog(event: EventLog | Log): event is EventLog {
     return 'args' in event;
@@ -16,7 +17,8 @@ export async function fetchPastListingsV0(
     writeBlockNumberToFile: WriteBlockNumberToFile,
     strictHash: boolean,
     errorHandling: any,
-    broadcaster: Broadcaster | null
+    broadcaster: Broadcaster | null,
+    getListingUpdatedAt: GetListingUpdatedAt | null
 ): Promise<void> {
     const newListingEvents = blockNumber === 0
         ? await contract.queryFilter('NewListing')
@@ -32,6 +34,11 @@ export async function fetchPastListingsV0(
 
     await Promise.all(newListingTypedEvents.map(async (event) => {
         console.debug(`received listing id: ${event.args.id} in block number: ${event.blockNumber}`);
+
+        if (getListingUpdatedAt && await shouldIgnore(event.args.id, event.args.offChainLink, getListingUpdatedAt)) {
+            console.debug(`Listing id: ${event.args.id} is not newer. Skipping update.`);
+            return;
+        }
 
         const listing = await getListingFromURL({
             id: event.args.id,
@@ -78,7 +85,8 @@ export function registerV0Listener(
     handleErr: HandleError,
     strictHash: boolean,
     errorHandling: any,
-    broadcaster: Broadcaster | null
+    broadcaster: Broadcaster | null,
+    getListingUpdatedAt: GetListingUpdatedAt | null
 ): void {
     let eventProcessing = Promise.resolve();
     
@@ -88,6 +96,11 @@ export function registerV0Listener(
     const newListingListener = (id: string, cityId: string, offChainLink: string, dataHash: string, timestamp: number, payload: any) => {
         eventProcessing = eventProcessing.then(async () => {
             console.debug(`received listing id: ${id} in block number: ${payload.log.blockNumber}`);
+
+            if (getListingUpdatedAt && await shouldIgnore(id, offChainLink, getListingUpdatedAt)) {
+                console.debug(`Listing id: ${id} is not newer. Skipping update.`);
+                return;
+            }
 
             const listing = await getListingFromURL({ id, cityId, offChainLink, dataHash, timestamp, blockNumber: payload.log.blockNumber }, errorHandling, strictHash);
                 if (listing) {

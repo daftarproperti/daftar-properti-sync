@@ -4,7 +4,7 @@ import { getListingFromURL, withRetries } from './fetch';
 import { handleErr } from './errorHandler';
 import { fetchPastListingsV0, registerV0Listener } from './listeners/v0';
 import { fetchPastListingsV1, registerV1Listener } from './listeners/v1';
-import { DaftarPropertiSyncOptions, ListingHandler } from './interfaces';
+import { DaftarPropertiSyncOptions, GetListingUpdatedAt, ListingHandler } from './interfaces';
 import express from 'express';
 import fs from 'fs/promises';
 import WebSocket from 'ws';
@@ -27,6 +27,7 @@ export class DaftarPropertiSync {
     fetchAll: boolean;
     fromBlockNumber: number;
     fetchLastKnownBlockNumber: (() => Promise<number>) | null;
+    getListingUpdatedAt: GetListingUpdatedAt | null;
     listingCollection: any;
     listingHandler: ListingHandler;
     errorHandling: any;
@@ -48,6 +49,7 @@ export class DaftarPropertiSync {
         this.fetchAll = options.fetchAll ?? false;
         this.fromBlockNumber = options.fromBlockNumber ?? 0;
         this.fetchLastKnownBlockNumber = options.fetchLastKnownBlockNumber ?? null;
+        this.getListingUpdatedAt = options.getListingUpdatedAt ?? null;
         this.listingCollection = options.listingCollection;
         this.listingHandler = async (listing, event) => {
             await this.syncToMongo(this.listingCollection, listing, event);
@@ -111,7 +113,8 @@ export class DaftarPropertiSync {
             handleErr,
             this.strictHash,
             this.errorHandling,
-            this.broadcaster
+            this.broadcaster,
+            this.getListingUpdatedAt
         );
     }
 
@@ -168,7 +171,8 @@ export class DaftarPropertiSync {
             this.writeBlockNumberToFile.bind(this),
             this.strictHash,
             this.errorHandling,
-            this.broadcaster
+            this.broadcaster,
+            this.getListingUpdatedAt
         );
     }
 

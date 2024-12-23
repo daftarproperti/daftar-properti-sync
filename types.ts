@@ -1,5 +1,5 @@
 import { Contract, Log } from 'ethers';
-import { FetchListingFromURL, ListingHandler, WithRetries, WriteBlockNumberToFile, HandleError } from './interfaces';
+import { FetchListingFromURL, ListingHandler, WithRetries, WriteBlockNumberToFile, HandleError, GetListingUpdatedAt } from './interfaces';
 import { Broadcaster } from './broadcast/broadcaster';
 
 export interface EventDetails {
@@ -37,7 +37,8 @@ export type FetchListingsFunction = (
     writeBlockNumberToFile: WriteBlockNumberToFile,
     strictHash: boolean,
     errorHandling: any,
-    broadcaster: Broadcaster | null
+    broadcaster: Broadcaster | null,
+    fetchListingUpdatedAt: GetListingUpdatedAt | null
 ) => Promise<void>;
 
 export type RegisterListenerFunction = (
@@ -49,5 +50,6 @@ export type RegisterListenerFunction = (
     handleErr: HandleError,
     strictHash: boolean,
     errorHandling: any,
-    broadcaster: Broadcaster | null
+    broadcaster: Broadcaster | null,
+    fetchListingUpdatedAt: GetListingUpdatedAt | null
 ) => void;

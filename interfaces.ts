@@ -14,6 +14,7 @@ export interface DaftarPropertiSyncOptions {
   strictHash: boolean;
   errorHandling: any;
   broadcastOptions?: BroadcastOptions;
+  getListingUpdatedAt?: GetListingUpdatedAt;
 }
 
 export interface FetchListingFromURL {
@@ -22,6 +23,10 @@ export interface FetchListingFromURL {
 
 export interface ListingHandler {
   (listing: any, event: EventDetails): Promise<void>;
+}
+
+export interface GetListingUpdatedAt {
+  (listingId: string): Promise<string>;
 }
 
 export interface WithRetries {
