@@ -9,6 +9,8 @@ import express from 'express';
 import fs from 'fs/promises';
 import WebSocket from 'ws';
 import { FetchListingsFunction, RegisterListenerFunction } from './types';
+import { BroadcastOptions } from './broadcast/interface';
+import { Broadcaster } from './broadcast/broadcaster';
 
 const app = express();
 
@@ -28,6 +30,8 @@ export class DaftarPropertiSync {
     listingCollection: any;
     listingHandler: ListingHandler;
     errorHandling: any;
+    broadcaster: Broadcaster | null;
+    broadcastOptions: BroadcastOptions | null;
 
     constructor(options: DaftarPropertiSyncOptions) {
         this.port = options.port ?? 8080;
@@ -52,6 +56,14 @@ export class DaftarPropertiSync {
             }
         };
         this.errorHandling = options.errorHandling;
+
+        if (options.broadcastOptions) {
+            this.broadcastOptions = options.broadcastOptions;
+            this.broadcaster = new Broadcaster(options.broadcastOptions);
+        } else {
+            this.broadcastOptions = null;
+            this.broadcaster = null;
+        }
     }
 
     createWebSocket() {
@@ -98,7 +110,8 @@ export class DaftarPropertiSync {
             this.writeBlockNumberToFile.bind(this),
             handleErr,
             this.strictHash,
-            this.errorHandling
+            this.errorHandling,
+            this.broadcaster
         );
     }
 
@@ -154,7 +167,8 @@ export class DaftarPropertiSync {
             withRetries,
             this.writeBlockNumberToFile.bind(this),
             this.strictHash,
-            this.errorHandling
+            this.errorHandling,
+            this.broadcaster
         );
     }
 
@@ -201,6 +215,10 @@ export class DaftarPropertiSync {
             this.logs.push(logString);
             originalConsoleLog.apply(console, args);
         };
+
+        if (this.broadcaster) {
+            await this.broadcaster.start();
+        }
 
         if (this.fetchAll) {
             await this.fetchPastListings(0);

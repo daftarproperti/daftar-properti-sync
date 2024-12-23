@@ -1,3 +1,4 @@
+import { BroadcastOptions } from "./broadcast/interface";
 import { EventDetails, EventContext } from "./types";
 
 export interface DaftarPropertiSyncOptions {
@@ -12,6 +13,7 @@ export interface DaftarPropertiSyncOptions {
   listingHandler: (listing: any, event: any) => Promise<void>;
   strictHash: boolean;
   errorHandling: any;
+  broadcastOptions?: BroadcastOptions;
 }
 
 export interface FetchListingFromURL {

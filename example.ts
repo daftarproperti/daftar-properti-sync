@@ -1,3 +1,4 @@
+import { AVAILABLE_CHANNELS } from './broadcast/channel/interface';
 import { createInstance } from './dpSync';
 import dotenv from 'dotenv';
 
@@ -51,6 +52,38 @@ async function main(): Promise<void> {
                 },
                 errorHandler: errorHandler,
             },
+            broadcastOptions: {
+                // Replace this with desired mongoURI
+                mongoURI: 'mongodb://localhost:27017',
+                // Replace this with desired mongoDatabase
+                mongoDatabase: 'test',
+                brokerOptions: {
+                    maxRetries: 2,
+                    twitterOptions: {
+                        enabled: true
+                    },
+                    channelOptions: [
+                        {
+                            name: 'Test Twitter',
+                            filter: async (listing: any) => {
+                                console.log("FILTERING LISTING . . . listing: ", listing);
+                                return true;
+                            },
+                            transform: async (listing: any) => {
+                                console.log("TRANSFORMING LISTING DESCRIPTION . . .");
+                                return listing.description;
+                            },
+                            driverName: AVAILABLE_CHANNELS.TWITTER,
+                            driverOptions: {
+                                appKey: "YOUR_APP_KEY",
+                                appSecret: "YOUR_APP_SECRET",
+                                accessToken: "YOUR_ACCESS_TOKEN",
+                                accessSecret: "YOUR_ACCESS_SECRET"
+                            }
+                        }
+                    ]
+                }
+            }
         };
 
         const instance = createInstance(options);
