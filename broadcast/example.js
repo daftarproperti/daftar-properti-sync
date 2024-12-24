@@ -68,7 +68,7 @@ const testOptions = {
         channelOptions: [
             {
                 name: 'Test Twitter',
-                filter: async (listing) => {
+                filter: async (listing, event) => {
                     console.log("FILTERING LISTING . . .");
                     return true;
                 },

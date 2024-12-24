@@ -104,11 +104,15 @@ export class Broker {
             let taskName;
 
             // Filter listing to post
-            if (!channelOption.filter(listing)) {
+            if (!channelOption.filter(listing, event)) {
                 continue;
             }
 
             if (channelOption.driverName == AVAILABLE_CHANNELS.TWITTER) {
+                if (!this.brokerOptions.twitterOptions.enabled) {
+                    continue;
+                }
+
                 channelName = `${AVAILABLE_CHANNELS.TWITTER}-${channelOption.name}`;
                 taskName = `post-to-${channelName.toLowerCase()}`;
             }
@@ -159,6 +163,11 @@ export class Broker {
     }
 
     private async onJobCompletion(job: any) {
+        if (!job.attrs || !job.attrs.data || !job.attrs.data.listing) {
+            console.warn("Job attributes or data are undefined, skipping job completion handling.");
+            return;
+        }
+        
         const { listingIdStr } = job.attrs.data.listing;
         const remainingJobs = (this.activeJobs.get(listingIdStr) || 1) - 1;
 

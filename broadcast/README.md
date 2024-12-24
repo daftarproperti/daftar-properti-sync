@@ -11,12 +11,7 @@ import { broadcast } from 'broadcast';
 
 ## Usage
 
-To view all logs:
-- Go to localhost:{PORT}
-
 To use Broadcast, following options will need to be specified:
-- port
--- define a port to run simple web interface
 - brokerOptions
 -- define channel credentials and whether or not broadcast should post to this channel. Structure can be found at ./channel/interface.ts
 - mongoURI

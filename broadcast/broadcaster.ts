@@ -63,7 +63,7 @@ export class Broadcaster {
         
         const database = client.db(this.mongoDatabase);
 
-        this.agenda = new Agenda({ db: { address: this.mongoURI, collection: 'agenda' } });
+        this.agenda = new Agenda({ db: { address: `${this.mongoURI}/${this.mongoDatabase}`, collection: 'agenda' } });
         this.agenda.define('broadcast', async (job: any) => {
             const { listing, event } = job.attrs.data;
             console.log(`Processing broadcast job: ${JSON.stringify({ listing, event })}`);

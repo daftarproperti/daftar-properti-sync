@@ -1,3 +1,5 @@
+import { EventDetails } from "../../types";
+
 export const AVAILABLE_CHANNELS = {
     TWITTER: "TWITTER",
 } as const;
@@ -9,7 +11,7 @@ export const STATUS = {
 }
 
 export interface Filter {
-    (listing: any): Promise<boolean>;
+    (listing: any, event: EventDetails): Promise<boolean>;
 }
 
 export interface Transform {
