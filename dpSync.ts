@@ -8,7 +8,7 @@ import { DaftarPropertiSyncOptions, GetListingUpdatedAt, ListingHandler } from '
 import express from 'express';
 import fs from 'fs/promises';
 import WebSocket from 'ws';
-import { FetchListingsFunction, RegisterListenerFunction } from './types';
+import { FetchListingsFunction, Listing, RegisterListenerFunction } from './types';
 import { BroadcastOptions } from './broadcast/interface';
 import { Broadcaster } from './broadcast/broadcaster';
 
@@ -118,7 +118,7 @@ export class DaftarPropertiSync {
         );
     }
 
-    async syncToMongo(listingCollection: any, listing: any, event: any): Promise<void> {
+    async syncToMongo(listingCollection: any, listing: Listing, event: any): Promise<void> {
         if (!listingCollection) return;
 
         const filter = { listingId: listing.listingId };

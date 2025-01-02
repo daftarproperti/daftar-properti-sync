@@ -4,6 +4,7 @@ import { Agenda } from "@hokify/agenda";
 import { DOWNLOAD_IMAGES_DIRECTORY } from "./downloadImage";
 import { AVAILABLE_CHANNELS, BrokerOptions, STATUS, Transform } from "./interface";
 import { handleTwitter } from "./twitter";
+import { Listing } from '../../types';
 
 export class Broker {
     agenda: Agenda;
@@ -95,7 +96,7 @@ export class Broker {
         });
     }
 
-    async broadcast(event: any, listing: any): Promise<void> {
+    async broadcast(event: any, listing: Listing): Promise<void> {
         const broadcastPromises = [];
         let jobCount = 0;
     

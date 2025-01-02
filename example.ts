@@ -1,10 +1,11 @@
 import { AVAILABLE_CHANNELS } from './broadcast/channel/interface';
 import { createInstance } from './dpSync';
 import dotenv from 'dotenv';
+import { Listing } from './types';
 
 dotenv.config();
 
-type ListingHandler = (listing: any, event: any) => Promise<void>;
+type ListingHandler = (listing: Listing, event: any) => Promise<void>;
 type ErrorHandler = (error: Error, context: any) => Promise<void>;
 type FetchLastKnownBlockNumber = () => Promise<number>;
 
@@ -65,11 +66,11 @@ async function main(): Promise<void> {
                     channelOptions: [
                         {
                             name: 'Test Twitter',
-                            filter: async (listing: any) => {
+                            filter: async (listing: Listing) => {
                                 console.log("FILTERING LISTING . . . listing: ", listing);
                                 return true;
                             },
-                            transform: async (listing: any) => {
+                            transform: async (listing: Listing) => {
                                 console.log("TRANSFORMING LISTING DESCRIPTION . . .");
                                 return listing.description;
                             },

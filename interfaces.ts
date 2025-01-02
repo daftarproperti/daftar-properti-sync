@@ -1,5 +1,5 @@
 import { BroadcastOptions } from "./broadcast/interface";
-import { EventDetails, EventContext } from "./types";
+import { EventDetails, EventContext, Listing } from "./types";
 
 export interface DaftarPropertiSyncOptions {
   port?: number;
@@ -10,7 +10,7 @@ export interface DaftarPropertiSyncOptions {
   fromBlockNumber?: number;
   fetchLastKnownBlockNumber?: () => Promise<number>;
   listingCollection?: any;
-  listingHandler: (listing: any, event: any) => Promise<void>;
+  listingHandler: (listing: Listing, event: any) => Promise<void>;
   strictHash: boolean;
   errorHandling: any;
   broadcastOptions?: BroadcastOptions;
@@ -22,7 +22,7 @@ export interface FetchListingFromURL {
 }
 
 export interface ListingHandler {
-  (listing: any, event: EventDetails): Promise<void>;
+  (listing: Listing, event: EventDetails): Promise<void>;
 }
 
 export interface GetListingUpdatedAt {

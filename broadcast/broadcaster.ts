@@ -3,6 +3,7 @@ import { BroadcastOptions } from "./interface";
 import { Broker } from "./channel/broker";
 import { BrokerOptions, STATUS } from "./channel/interface";
 import { Agenda } from "@hokify/agenda";
+import { Listing } from "../types";
 
 export class Broadcaster {
     mongoURI: string;
@@ -36,7 +37,7 @@ export class Broadcaster {
         }
     }
 
-    async broadcast(listing: any, event: any): Promise<void> {
+    async broadcast(listing: Listing, event: any): Promise<void> {
         if (!event) {
             console.log(`No event submitted, aborting broadcast`);
             return;

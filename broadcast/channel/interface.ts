@@ -1,4 +1,4 @@
-import { EventDetails } from "../../types";
+import { EventDetails, Listing } from "../../types";
 
 export const AVAILABLE_CHANNELS = {
     TWITTER: "TWITTER",
@@ -11,11 +11,11 @@ export const STATUS = {
 }
 
 export interface Filter {
-    (listing: any, event: EventDetails): Promise<boolean>;
+    (listing: Listing, event: EventDetails): Promise<boolean>;
 }
 
 export interface Transform {
-    (listing: any): Promise<string>;
+    (listing: Listing): Promise<string>;
 }
 
 export interface BrokerOptions {

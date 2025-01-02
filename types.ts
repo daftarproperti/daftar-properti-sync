@@ -2,6 +2,51 @@ import { Contract, Log } from 'ethers';
 import { FetchListingFromURL, ListingHandler, WithRetries, WriteBlockNumberToFile, HandleError, GetListingUpdatedAt } from './interfaces';
 import { Broadcaster } from './broadcast/broadcaster';
 
+export interface Listing {
+  listingId: number;
+  listingIdStr: string;
+  propertyType: string;
+  listingForSale: boolean;
+  listingForRent: boolean;
+  address: string;
+  description: string;
+  price: number;
+  rentPrice: number;
+  lotSize: number;
+  buildingSize: number;
+  carCount: number;
+  bedroomCount: number;
+  bathroomCount: number;
+  floorCount: number;
+  electricPower: number | null;
+  facing: string;
+  ownership: string;
+  isVerified: boolean;
+  cityName: string;
+  cityId: number;
+  pictureUrls: string[];
+  coordinate: Coordinate;
+  withRewardAgreement: boolean;
+  isMultipleUnits: boolean;
+  createdAt: string;
+  updatedAt: string;
+  registrant: Registrant;
+}
+
+export interface Coordinate {
+  latitude: number;
+  longitude: number;
+}
+
+export interface Registrant {
+  name: string;
+  phoneNumberEncrypted: string;
+  phoneNumberHash: string;
+  delegatePhoneHash: string | null;
+  profilePictureURL: string | null;
+  company: string | null;
+}
+
 export interface EventDetails {
   id: string;
   cityId: string;
