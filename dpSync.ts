@@ -53,7 +53,7 @@ export class DaftarPropertiSync {
         this.listingCollection = options.listingCollection;
         this.listingHandler = async (listing, event) => {
             await this.syncToMongo(this.listingCollection, listing, event);
-            if (typeof options.listingHandler === 'function') {
+            if (options.listingHandler && typeof options.listingHandler === 'function') {
                 await options.listingHandler(listing, event);
             }
         };
