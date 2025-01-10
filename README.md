@@ -40,6 +40,41 @@ To use DP Sync Library you will need to define following options:
 -- errorChannel: define which channel to use when sending error notifications (Available options: SLACK)
 -- slackConfiguration: if SLACK is chosen as error channel, please provide required configuration.
 --- slackWebhookURL: [required] Slack webhook url to send message to
--- errorHandler: define this to customly handle incoming error
+- errorHandler: define this to customly handle incoming error
+- broadcaster: define broadcasting configuration to broadcast listing into social media. See `/broadcast/README.md` for more details.
+- broadcastOptions: define broadcasting configuration to broadcast listing into social media. See `/broadcast/README.md` for more details.
+
+## Real Time Syncing
+
+Daftar Properti Sync supports real time syncing by default. To use real time syncing, after installing daftar properti sync library and defining options, add following code:
+```
+const instance = createInstance(options);
+
+await instance.start();
+```
+
+## Periodic Syncing
+
+Daftar Properti Sync also supports periodic syncing to save compute resources (E.g: Synchronizer does not need to run continously, but instead periodically in a containerized environment). To use periodic syncing, several options need to be defined.
+
+```
+async function fetchLatestBlockNumber(): Promise<number> {
+    // Wherever persisting listing, it has block number by default
+    // If using custom listingHandler, make sure to save the block number as well
+    const blockNumber = getBlockNumberInListingData();
+
+    return blockNumber;
+}
+ 
+// add this option
+options.fetchLastKnownBlockNumber = fetchLatestBlockNumber;
+
+// Same as real time syncing, define instance first
+const instance = createInstance(options);
+
+// Suppose periodic logic is handled in the container
+// Each interval only call this function
+await instance.fetchMissedListings();
+```
 
 See `example.ts` for sample code

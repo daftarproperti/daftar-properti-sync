@@ -8,7 +8,7 @@ import { DaftarPropertiSyncOptions, GetListingUpdatedAt, ListingHandler } from '
 import express from 'express';
 import fs from 'fs/promises';
 import WebSocket from 'ws';
-import { FetchListingsFunction, Listing, RegisterListenerFunction } from './types';
+import { EventDetails, FetchListingsFunction, Listing, RegisterListenerFunction } from './types';
 import { BroadcastOptions } from './broadcast/interface';
 import { Broadcaster } from './broadcast/broadcaster';
 
@@ -118,7 +118,7 @@ export class DaftarPropertiSync {
         );
     }
 
-    async syncToMongo(listingCollection: any, listing: Listing, event: any): Promise<void> {
+    async syncToMongo(listingCollection: any, listing: Listing, event: EventDetails): Promise<void> {
         if (!listingCollection) return;
 
         const filter = { listingId: listing.listingId };
@@ -135,6 +135,9 @@ export class DaftarPropertiSync {
 
                 case 'ADD':
                 case 'UPDATE':
+                    // Save block number by default to Listing
+                    listing.blockNumber = event.blockNumber;
+
                     const update = { $set: listing };
                     const options = { upsert: true };
 

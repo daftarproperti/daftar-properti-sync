@@ -5,6 +5,7 @@ import { Broadcaster } from './broadcast/broadcaster';
 export interface Listing {
   listingId: number;
   listingIdStr: string;
+  blockNumber: number;
   propertyType: string;
   listingForSale: boolean;
   listingForRent: boolean;
