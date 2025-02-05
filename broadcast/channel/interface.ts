@@ -2,6 +2,7 @@ import { EventDetails, Listing } from "../../types";
 
 export const AVAILABLE_CHANNELS = {
     TWITTER: "TWITTER",
+    INSTAGRAM: "INSTAGRAM",
 } as const;
 
 export const STATUS = {
@@ -20,27 +21,40 @@ export interface Transform {
 
 export interface BrokerOptions {
     maxRetries: number;
-    twitterOptions: TwitterOptions;
     channelOptions: ChannelOption[];
 }
 
-export interface ChannelOption {
+export type ChannelType = typeof AVAILABLE_CHANNELS[keyof typeof AVAILABLE_CHANNELS];
+
+export interface BaseChannelOption {
+    enabled: boolean,
     name: string,
     filter: Filter;
     transform: Transform;
-    driverName: typeof AVAILABLE_CHANNELS[keyof typeof AVAILABLE_CHANNELS];
-    driverOptions: TwitterDriverOptions | SampleDriverOptions;
 }
 
-export interface TwitterOptions {
-    enabled: boolean;
+export interface TwitterChannelOption extends BaseChannelOption {
+  driverName: typeof AVAILABLE_CHANNELS.TWITTER;
+  driverOptions: TwitterDriverOptions;
 }
+
+export interface InstagramChannelOption extends BaseChannelOption {
+  driverName: typeof AVAILABLE_CHANNELS.INSTAGRAM;
+  driverOptions: InstagramDriverOptions;
+}
+
+export type ChannelOption = TwitterChannelOption | InstagramChannelOption;
 
 export interface TwitterDriverOptions {
     appKey: string;
     appSecret: string;
     accessToken: string;
     accessSecret: string;
+}
+
+export interface InstagramDriverOptions {
+    accessToken: string;
+    instagramAccountId: string;
 }
 
 export interface SampleOptions {

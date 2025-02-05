@@ -1,16 +1,12 @@
 import * as fs from "fs";
 import * as path from "path";
 import { DOWNLOAD_IMAGES_DIRECTORY, downloadImages } from "./downloadImage";
-import { AVAILABLE_CHANNELS, ChannelOption, TwitterDriverOptions } from "./interface";
+import { TwitterChannelOption } from "./interface";
 
 const { TwitterApi } = require("twitter-api-v2");
 
-export function handleTwitter(channelOption: ChannelOption) {
-    if (channelOption.driverName !== AVAILABLE_CHANNELS.TWITTER) {
-        throw new Error(`Invalid driverName: ${channelOption.driverName}. Expected ${AVAILABLE_CHANNELS.TWITTER}.`);
-    }
-
-    const driverOptions = channelOption.driverOptions as TwitterDriverOptions;
+export function handleTwitter(channelOption: TwitterChannelOption) {
+    const driverOptions = channelOption.driverOptions;
 
     const client = new TwitterApi({
         appKey: driverOptions.appKey,

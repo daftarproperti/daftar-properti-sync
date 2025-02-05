@@ -2,8 +2,9 @@ import * as fs from 'fs';
 import * as path from "path";
 import { Agenda } from "@hokify/agenda";
 import { DOWNLOAD_IMAGES_DIRECTORY } from "./downloadImage";
-import { AVAILABLE_CHANNELS, BrokerOptions, STATUS, Transform } from "./interface";
+import { AVAILABLE_CHANNELS, BrokerOptions, ChannelOption, STATUS, Transform } from "./interface";
 import { handleTwitter } from "./twitter";
+import { handleInstagram } from "./instagram";
 import { Listing } from '../../types';
 
 export class Broker {
@@ -23,7 +24,21 @@ export class Broker {
 
         // Initialize Agenda Tasks
         for (const channelOption of this.brokerOptions.channelOptions) {
-            this.registerChannelTask(`${AVAILABLE_CHANNELS.TWITTER}-${channelOption.name}`, channelOption.transform, handleTwitter(channelOption));
+            const getMethodHandler = (channelOption: ChannelOption) => {
+                switch (channelOption.driverName) {
+                    case AVAILABLE_CHANNELS.TWITTER:
+                        return handleTwitter(channelOption);
+                    case AVAILABLE_CHANNELS.INSTAGRAM:
+                        return handleInstagram(channelOption);
+                }
+            };
+
+            // Register task
+            this.registerChannelTask(
+              `${channelOption.driverName}-${channelOption.name}`,
+              channelOption.transform,
+              getMethodHandler(channelOption),
+            );
         }
     }
 
@@ -101,31 +116,24 @@ export class Broker {
         let jobCount = 0;
     
         for (const channelOption of this.brokerOptions.channelOptions) {
-            let channelName;
-            let taskName;
+            // Check channel enabled earliest before everything else
+            if (!channelOption.enabled) {
+                continue;
+            }
 
             // Filter listing to post
             if (!channelOption.filter(listing, event)) {
                 continue;
             }
 
-            if (channelOption.driverName == AVAILABLE_CHANNELS.TWITTER) {
-                if (!this.brokerOptions.twitterOptions.enabled) {
-                    continue;
-                }
-
-                channelName = `${AVAILABLE_CHANNELS.TWITTER}-${channelOption.name}`;
-                taskName = `post-to-${channelName.toLowerCase()}`;
-            }
+            const channelName = `${channelOption.driverName}-${channelOption.name}`;
+            const taskName = `post-to-${channelName.toLowerCase()}`;
         
             console.log(`Queuing broadcast for channel: ${channelName}`);
-
-            if (taskName) {
-                broadcastPromises.push(
-                    this.agenda.now(taskName, { event: event, listing: listing })
-                );
-                jobCount++;
-            }
+            broadcastPromises.push(
+                this.agenda.now(taskName, { event: event, listing: listing })
+            );
+            jobCount++;
         }
 
         if (jobCount > 0) {

@@ -60,12 +60,10 @@ async function main(): Promise<void> {
                 mongoDatabase: 'test',
                 brokerOptions: {
                     maxRetries: 2,
-                    twitterOptions: {
-                        enabled: true
-                    },
                     channelOptions: [
                         {
                             name: 'Test Twitter',
+                            enabled: true,
                             filter: async (listing: Listing) => {
                                 console.log("FILTERING LISTING . . . listing: ", listing);
                                 return true;

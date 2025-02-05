@@ -29,11 +29,11 @@ Adding new Channel using following steps:
 - Function should accept Option as parameter and return an async function with job as parameter.
 
 ## Example
-Integrating broadcast can be seen at `example.js`. 
+Integrating broadcast can be seen at `example.mjs`.
 
 Replace the value with actual value to test posting mechanism.
 
-Steps to run:
+Steps to run test:
 1. Then, run `npm run build`
 
-2. To run example, simply run this command: `node example.js`
+2. To run example, simply run this command: `node example.mjs`

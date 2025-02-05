@@ -83,6 +83,22 @@ const testOptions = {
                     accessToken: "YOUR_ACCESS_TOKEN",
                     accessSecret: "YOUR_ACCESS_SECRET"
                 }
+            },
+            {
+                name: 'Test Instagram',
+                filter: async (listing, event) => {
+                    console.log("FILTERING LISTING . . .");
+                    return true;
+                },
+                transform: async (listing) => {
+                    console.log("TRANSFORMING LISTING DESCRIPTION . . .");
+                    return listing.description;
+                },
+                driverName: AVAILABLE_CHANNELS.INSTAGRAM,
+                driverOptions: {
+                    accessToken:"YOUR_INSTAGRAM_ACCESS_TOKEN",
+                    instagramAccountId: "YOUR_INSTAGRAM_ACCOUNT_ID"
+                }
             }
         ]
     }
