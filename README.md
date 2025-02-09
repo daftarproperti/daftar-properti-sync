@@ -4,9 +4,17 @@ Library to ease the use for Daftar Properti's data
 
 ## Installation
 
-To use, simply add below lines to your code:
+To install, add daftar-property-sync as a dependency to your package.json:
 ```
-const { createInstance } = require('daftar-properti-sync');
+{
+  ...
+  "dependencies": {
+    ...
+    "daftar-properti-sync": "git+https://github.com/daftarproperti/daftar-properti-sync.git#<commit hash>",
+    ...
+  },
+  ...
+}
 ```
 
 ## Usage
@@ -52,6 +60,15 @@ const instance = createInstance(options);
 
 await instance.start();
 ```
+
+You can also sync buyer requests in a similar way:
+```
+const instance = createBuyerRequestSyncInstance(options);
+
+await instance.start();
+```
+
+Both can be called separately if needed.
 
 ## Periodic Syncing
 

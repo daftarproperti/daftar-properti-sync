@@ -1,5 +1,9 @@
 import { Contract, Log } from 'ethers';
-import { FetchListingFromURL, ListingHandler, WithRetries, WriteBlockNumberToFile, HandleError, GetListingUpdatedAt } from './interfaces';
+import {
+  FetchListingFromURL, ListingHandler, WithRetries, HandleError, GetListingUpdatedAt,
+  FetchBuyerRequestFromURL, BuyerRequestHandler, BuyerRequestWithRetries, BuyerRequestHandleError, GetBuyerRequestUpdatedAt,
+  WriteBlockNumberToFile,
+ } from './interfaces';
 import { Broadcaster } from './broadcast/broadcaster';
 
 export interface Listing {
@@ -52,6 +56,53 @@ export interface Registrant {
   company: string | null;
 }
 
+export interface BuyerRequest {
+  buyerRequestId: number;
+  buyerRequestIdStr: string;
+  blockNumber: number;
+  submitter: string;
+  cityId: number;
+  title: string;
+  filter: Filter;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface Filter {
+  city: string;
+  propertyType: string;
+  listingType: string;
+  facing: string;
+  ownership: string;
+  price: MinMaxNumber;
+  lotSize: MinMaxNumber;
+  bedroomCount: MinNumberOnly;
+  bathroomCount: MinNumberOnly;
+  carCount: MinNumberOnly;
+  floorCount: number;
+  electricPower: number;
+}
+
+export interface MinMaxNumber {
+  min: number;
+  max: number;
+}
+
+export interface MinNumberOnly {
+  min: number;
+}
+
+export interface BuyerRequestEventDetails {
+  id: string;
+  submitter: string;
+  cityId: string;
+  title: string;
+  filter: Filter;
+  timestamp: number;
+  blockNumber: number;
+  operationType?: string;
+}
+
 export interface EventDetails {
   id: string;
   cityId: string;
@@ -65,6 +116,10 @@ export interface EventDetails {
 export interface EventContext {
   blockNumber: number;
   offChainLink: string;
+}
+
+export interface BuyerRequestEventContext {
+  blockNumber: number;
 }
 
 export interface Event extends Log {
@@ -102,4 +157,26 @@ export type RegisterListenerFunction = (
     errorHandling: any,
     broadcaster: Broadcaster | null,
     fetchListingUpdatedAt: GetListingUpdatedAt | null
+) => void;
+
+export type FetchBuyerRequestsFunction = (
+    blockNumber: number,
+    contract: Contract,
+    buyerRequestHandler: BuyerRequestHandler,
+    withRetries: BuyerRequestWithRetries,
+    writeBlockNumberToFile: WriteBlockNumberToFile,
+    errorHandling: any,
+    broadcaster: Broadcaster | null,
+    fetchBuyerRequestUpdatedAt: GetBuyerRequestUpdatedAt | null
+) => Promise<void>;
+
+export type RegisterBuyerRequestListenerFunction = (
+    contract: Contract,
+    buyerRequestHandler: BuyerRequestHandler,
+    withRetries: BuyerRequestWithRetries,
+    writeBlockNumberToFile: WriteBlockNumberToFile,
+    handleErr: BuyerRequestHandleError,
+    errorHandling: any,
+    broadcaster: Broadcaster | null,
+    fetchBuyerRequestUpdatedAt: GetBuyerRequestUpdatedAt | null
 ) => void;

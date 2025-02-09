@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import fetch from 'node-fetch';
-import { handleErr } from './errorHandler';
-import { EventDetails, EventContext } from './types';
+import { handleErr, buyerRequestHandleErr } from './errorHandler';
+import { EventDetails, BuyerRequestEventDetails, EventContext, BuyerRequestEventContext } from './types';
 
 export async function getListingFromURL(
     event: EventDetails,
@@ -43,6 +43,27 @@ export async function withRetries(
                 delay *= 3;
             } else {
                 await handleErr(error as Error, { blockNumber: context.blockNumber, offChainLink: context.offChainLink }, errorHandling);
+            }
+        }
+    }
+}
+
+export async function buyerRequestWithRetries(
+    fn: () => Promise<void>,
+    context: BuyerRequestEventContext,
+    errorHandling: any,
+    retries: number = 3,
+    delay: number = 1000
+): Promise<void> {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+        return await fn();
+        } catch (error) {
+            if (attempt < retries) {
+                await new Promise(resolve => setTimeout(resolve, delay));
+                delay *= 3;
+            } else {
+                await buyerRequestHandleErr(error as Error, { blockNumber: context.blockNumber }, errorHandling);
             }
         }
     }

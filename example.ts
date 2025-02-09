@@ -1,17 +1,27 @@
 import { AVAILABLE_CHANNELS } from './broadcast/channel/interface';
 import { createInstance } from './dpSync';
+import { createBuyerRequestSyncInstance } from './brSync';
 import dotenv from 'dotenv';
-import { Listing } from './types';
+import { Listing, BuyerRequest } from './types';
 
 dotenv.config();
 
 type ListingHandler = (listing: Listing, event: any) => Promise<void>;
+type BuyerRequestHandler = (buyerRequest: BuyerRequest, event: any) => Promise<void>;
 type ErrorHandler = (error: Error, context: any) => Promise<void>;
 type FetchLastKnownBlockNumber = () => Promise<number>;
 
 const listingHandler: ListingHandler = async (listing, event) => {
     console.log("Listing: ");
     console.log(listing);
+
+    console.log("Event details: ");
+    console.log(event);
+};
+
+const buyerRequestHandler: BuyerRequestHandler = async (request, event) => {
+    console.log("BuyerRequest: ");
+    console.log(request);
 
     console.log("Event details: ");
     console.log(event);
@@ -36,12 +46,12 @@ async function main(): Promise<void> {
             throw new Error("Missing environment variables. Please set INFURA_API_KEY, ERROR_NOTIF_CHANNEL, SLACK_WEBHOOK_URL, or CONTRACT_ADDRESS.");
         }
 
-        const options = {
+        const listingSyncOptions = {
             port: 8080,
             address: CONTRACT_ADDRESS,
             fetchAll: false,
             strictHash: true,
-            providerHost: `polygon-mainnet.infura.io/ws/v3/${INFURA_API_KEY}`,
+            providerHost: `ganache.daftarproperti.org/`,
             fromBlockNumber: 0,
             abiVersion: 1,
             fetchLastKnownBlockNumber: fetchLastKnownBlockNumber,
@@ -57,7 +67,7 @@ async function main(): Promise<void> {
                 // Replace this with desired mongoURI
                 mongoURI: 'mongodb://localhost:27017',
                 // Replace this with desired mongoDatabase
-                mongoDatabase: 'test',
+                mongoDatabase: 'dpsync',
                 brokerOptions: {
                     maxRetries: 2,
                     channelOptions: [
@@ -84,10 +94,29 @@ async function main(): Promise<void> {
                 }
             }
         };
+        const listingInstance = createInstance(listingSyncOptions);
 
-        const instance = createInstance(options);
+        const buyerRequestSyncOptions = {
+            port: 8081,
+            address: CONTRACT_ADDRESS,
+            fetchAll: false,
+            strictHash: true,
+            providerHost: `ganache.daftarproperti.org/`,
+            fromBlockNumber: 0,
+            abiVersion: 0,
+            fetchLastKnownBlockNumber: fetchLastKnownBlockNumber,
+            buyerRequestHandler: buyerRequestHandler,
+            errorHandling: {
+                errorChannel: ERROR_NOTIF_CHANNEL,
+                slackConfiguration: {
+                    slackWebhookURL: SLACK_WEBHOOK_URL
+                },
+                errorHandler: errorHandler,
+            }
+        };
+        const buyerRequestInstance = createBuyerRequestSyncInstance(buyerRequestSyncOptions);
 
-        await instance.start();
+        await Promise.all([listingInstance.start(), buyerRequestInstance.start()]);
     } catch (error) {
         console.error('Error in main function:', error);
     }

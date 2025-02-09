@@ -1,25 +1,23 @@
 import { getContract } from './contract';
 import { ethers } from 'ethers';
-import { getListingFromURL, withRetries } from './fetch';
-import { handleErr } from './errorHandler';
-import { fetchPastListingsV1, registerV1Listener } from './listeners/Listings-v1';
-import { fetchPastListingsV3, registerV3Listener } from './listeners/Listings-v3';
-import { DaftarPropertiSyncOptions, GetListingUpdatedAt, ListingHandler } from './interfaces';
+import { buyerRequestWithRetries } from './fetch';
+import { buyerRequestHandleErr } from './errorHandler';
+import { fetchPastRequestsV0, registerRequestV0Listener } from './listeners/BuyerRequests-v0';
+import { BuyerRequestSyncOptions, GetBuyerRequestUpdatedAt, BuyerRequestHandler } from './interfaces';
 import express from 'express';
 import fs from 'fs/promises';
 import WebSocket from 'ws';
-import { EventDetails, FetchListingsFunction, Listing, RegisterListenerFunction } from './types';
+import { BuyerRequestEventDetails, FetchBuyerRequestsFunction, BuyerRequest, RegisterBuyerRequestListenerFunction } from './types';
 import { BroadcastOptions } from './broadcast/interface';
 import { Broadcaster } from './broadcast/broadcaster';
 
 const app = express();
 
-export class DaftarPropertiSync {
+export class BuyerRequestSync {
     logs: string[] = [];
     lastProcessedBlock: number = 0;
     port: number;
     address: string;
-    strictHash: boolean;
     provider: any;
     providerHost: string;
     abiVersion: number;
@@ -27,34 +25,33 @@ export class DaftarPropertiSync {
     fetchAll: boolean;
     fromBlockNumber: number;
     fetchLastKnownBlockNumber: (() => Promise<number>) | null;
-    getListingUpdatedAt: GetListingUpdatedAt | null;
-    listingCollection: any;
-    listingHandler: ListingHandler;
+    getBuyerRequestUpdatedAt: GetBuyerRequestUpdatedAt | null;
+    buyerRequestCollection: any;
+    buyerRequestHandler: BuyerRequestHandler;
     errorHandling: any;
     broadcaster: Broadcaster | null;
     broadcastOptions: BroadcastOptions | null;
 
-    constructor(options: DaftarPropertiSyncOptions) {
-        this.port = options.port ?? 8080;
+    constructor(options: BuyerRequestSyncOptions) {
+        this.port = options.port ?? 8081;
         this.address = options.address;
-        this.strictHash = options.strictHash;
    
         this.providerHost = options.providerHost || "";
         
         this.provider = new ethers.WebSocketProvider(this.createWebSocket());
 
         this.abiVersion = options.abiVersion;
-        this.contract = getContract('Listings', this.address, this.provider, this.abiVersion);
+        this.contract = getContract('BuyerRequests', this.address, this.provider, this.abiVersion);
 
         this.fetchAll = options.fetchAll ?? false;
         this.fromBlockNumber = options.fromBlockNumber ?? 0;
         this.fetchLastKnownBlockNumber = options.fetchLastKnownBlockNumber ?? null;
-        this.getListingUpdatedAt = options.getListingUpdatedAt ?? null;
-        this.listingCollection = options.listingCollection;
-        this.listingHandler = async (listing, event) => {
-            await this.syncToMongo(this.listingCollection, listing, event);
-            if (options.listingHandler && typeof options.listingHandler === 'function') {
-                await options.listingHandler(listing, event);
+        this.getBuyerRequestUpdatedAt = options.getBuyerRequestUpdatedAt ?? null;
+        this.buyerRequestCollection = options.buyerRequestCollection;
+        this.buyerRequestHandler = async (buyerRequest, event) => {
+            await this.syncToMongo(this.buyerRequestCollection, buyerRequest, event);
+            if (options.buyerRequestHandler && typeof options.buyerRequestHandler === 'function') {
+                await options.buyerRequestHandler(buyerRequest, event);
             }
         };
         this.errorHandling = options.errorHandling;
@@ -80,7 +77,7 @@ export class DaftarPropertiSync {
             console.log("Websocket disconnected. Reconnecting . . .");
             setTimeout(() => {
                 this.provider = new ethers.WebSocketProvider(this.createWebSocket());
-                this.contract = getContract('Listings', this.address, this.provider, this.abiVersion);
+                this.contract = getContract('BuyerRequests', this.address, this.provider, this.abiVersion);
                 reconnect();
             }, 3000);
         };
@@ -93,9 +90,8 @@ export class DaftarPropertiSync {
     }
 
     registerListeners() {
-        const listenerMap: Record<number, RegisterListenerFunction> = {
-            1: registerV1Listener,
-            3: registerV3Listener
+        const listenerMap: Record<number, RegisterBuyerRequestListenerFunction> = {
+            0: registerRequestV0Listener
         };
 
         const registerListener = listenerMap[this.abiVersion];
@@ -106,104 +102,86 @@ export class DaftarPropertiSync {
 
         registerListener(
             this.contract,
-            getListingFromURL,
-            this.listingHandler,
-            withRetries,
+            this.buyerRequestHandler,
+            buyerRequestWithRetries,
             this.writeBlockNumberToFile.bind(this),
-            handleErr,
-            this.strictHash,
+            buyerRequestHandleErr,
             this.errorHandling,
             this.broadcaster,
-            this.getListingUpdatedAt
+            this.getBuyerRequestUpdatedAt
         );
     }
 
-    async syncToMongo(listingCollection: any, listing: Listing, event: EventDetails): Promise<void> {
-        if (!listingCollection) return;
+    async syncToMongo(buyerRequestCollection: any, buyerRequest: BuyerRequest, event: BuyerRequestEventDetails): Promise<void> {
+        if (!buyerRequestCollection) return;
 
-        const filter = { listingId: listing.listingId };
+        const filter = { buyerRequestId: buyerRequest.buyerRequestId };
         try {
             switch (event.operationType) {
                 case 'DELETE':
-                    const deleteResult = await listingCollection.deleteOne(filter);
+                    const deleteResult = await buyerRequestCollection.deleteOne(filter);
                     if (deleteResult.deletedCount > 0) {
-                        console.log(`Listing ${listing.listingId} deleted from mongodb, block number ${event.blockNumber}`);
+                        console.log(`Request ${buyerRequest.buyerRequestId} deleted from mongodb, block number ${event.blockNumber}`);
                     } else {
-                        console.log(`Listing ${listing.listingId} not found in mongodb for deletion, block number ${event.blockNumber}`);
+                        console.log(`Request ${buyerRequest.buyerRequestId} not found in mongodb for deletion, block number ${event.blockNumber}`);
                     }
                     break;
 
                 case 'ADD':
                 case 'UPDATE':
-                    // Save block number by default to Listing
-                    listing.blockNumber = event.blockNumber;
+                    // Save block number by default to Request
+                    buyerRequest.blockNumber = event.blockNumber;
 
-                    listing.isInvalidated = false;
-
-                    const update = { $set: listing };
+                    const update = { $set: buyerRequest };
                     const options = { upsert: true };
 
-                    const updateResult = await listingCollection.updateOne(filter, update, options);
+                    const updateResult = await buyerRequestCollection.updateOne(filter, update, options);
                     if (updateResult.upsertedCount > 0) {
-                        console.log(`Listing ${listing.listingId} inserted to mongodb, block number ${event.blockNumber}`);
+                        console.log(`Request ${buyerRequest.buyerRequestId} inserted to mongodb, block number ${event.blockNumber}`);
                     } else {
-                        console.log(`Listing ${listing.listingId} updated in mongodb, block number ${event.blockNumber}`);
+                        console.log(`Request ${buyerRequest.buyerRequestId} updated in mongodb, block number ${event.blockNumber}`);
                     }
                     break;
-
-                case 'INVALIDATE':
-                    const invalidateUpdate = { $set: { isInvalidated: true } };
-                    const invalidateResult = await listingCollection.updateOne(filter, invalidateUpdate);
-                    if (invalidateResult.modifiedCount > 0) {
-                        console.log(`Listing ${listing.listingId} invalidated in mongodb, block number ${event.blockNumber}`);
-                    } else {
-                        console.log(`Listing ${listing.listingId} not found for invalidation, block number ${event.blockNumber}`);
-                    }
-                    break;
-
 
                 default:
-                    console.log(`Invalid operationType: ${event.operationType} for listing ${listing.listingId}, block number ${event.blockNumber}`);
+                    console.log(`Invalid operationType: ${event.operationType} for buyerRequest ${buyerRequest.buyerRequestId}, block number ${event.blockNumber}`);
             }
         } catch (error) {
             throw error;
         }
     }
 
-    async fetchPastListings(blockNumber: number = 0): Promise<void> {
-        const fetchListingsMap: Record<number, FetchListingsFunction> = {
-            1: fetchPastListingsV1,
-            3: fetchPastListingsV3
+    async fetchPastRequests(blockNumber: number = 0): Promise<void> {
+        const fetchRequestsMap: Record<number, FetchBuyerRequestsFunction> = {
+            0: fetchPastRequestsV0
         };
 
-        const fetchPastListingsFunc = fetchListingsMap[this.abiVersion];
+        const fetchPastRequestsFunc = fetchRequestsMap[this.abiVersion];
 
-        await fetchPastListingsFunc(
+        await fetchPastRequestsFunc(
             blockNumber,
             this.contract,
-            getListingFromURL,
-            this.listingHandler,
-            withRetries,
+            this.buyerRequestHandler,
+            buyerRequestWithRetries,
             this.writeBlockNumberToFile.bind(this),
-            this.strictHash,
             this.errorHandling,
             this.broadcaster,
-            this.getListingUpdatedAt
+            this.getBuyerRequestUpdatedAt
         );
     }
 
-    async fetchMissedListings(): Promise<void> {
+    async fetchMissedRequests(): Promise<void> {
         let blockNumber = await this.readBlockNumberFromFile();
         if (this.fetchLastKnownBlockNumber) {
             blockNumber = await this.fetchLastKnownBlockNumber();
         }
 
-        await this.fetchPastListings(blockNumber);
+        await this.fetchPastRequests(blockNumber);
     }
 
     async readBlockNumberFromFile(): Promise<number> {
         try {
-            const data = await fs.readFile('./lastKnownBlockNumber.txt', 'utf8');
+            const data = await fs.readFile('./lastKnownBuyerRequestBlockNumber.txt', 'utf8');
             return data === '' ? 0 : parseInt(data, 10);
         } catch (err) {
             return 0;
@@ -212,7 +190,7 @@ export class DaftarPropertiSync {
 
     async writeBlockNumberToFile(blockNumber: number): Promise<void> {
         try {
-            const data = await fs.readFile('./lastKnownBlockNumber.txt', 'utf8');
+            const data = await fs.readFile('./lastKnownBuyerRequestBlockNumber.txt', 'utf8');
             const lastKnownBlockNumber = parseInt(data, 10);
 
             if (lastKnownBlockNumber >= blockNumber) {
@@ -225,7 +203,7 @@ export class DaftarPropertiSync {
         }
 
         this.lastProcessedBlock = blockNumber;
-        await fs.writeFile('./lastKnownBlockNumber.txt', blockNumber.toString(), { flag: 'w', encoding: 'utf8' });
+        await fs.writeFile('./lastKnownBuyerRequestBlockNumber.txt', blockNumber.toString(), { flag: 'w', encoding: 'utf8' });
     }
 
     async start(): Promise<void> {
@@ -241,14 +219,14 @@ export class DaftarPropertiSync {
         }
 
         if (this.fetchAll) {
-            await this.fetchPastListings(0);
+            await this.fetchPastRequests(0);
         }
 
         if (this.fromBlockNumber !== 0) {
-            await this.fetchPastListings(this.fromBlockNumber);
+            await this.fetchPastRequests(this.fromBlockNumber);
         }
 
-        await this.fetchMissedListings();
+        await this.fetchMissedRequests();
 
         this.registerListeners();
 
@@ -278,13 +256,13 @@ export class DaftarPropertiSync {
     }
 }
 
-export function createInstance(options: DaftarPropertiSyncOptions): DaftarPropertiSync {
+export function createBuyerRequestSyncInstance(options: BuyerRequestSyncOptions): BuyerRequestSync {
     validateOptions(options);
-    return new DaftarPropertiSync(options);
+    return new BuyerRequestSync(options);
 }
 
-function validateOptions(options: DaftarPropertiSyncOptions): void {
-    const requiredFields = ['providerHost', 'abiVersion', 'listingHandler'];
+function validateOptions(options: BuyerRequestSyncOptions): void {
+    const requiredFields = ['providerHost', 'abiVersion', 'buyerRequestHandler'];
     for (const field of requiredFields) {
         if (!(field in options)) {
             throw new Error(`Required field '${field}' is missing in options.`);

@@ -1,5 +1,5 @@
 import { BroadcastOptions } from "./broadcast/interface";
-import { EventDetails, EventContext, Listing } from "./types";
+import { EventDetails, BuyerRequestEventDetails, EventContext, BuyerRequestEventContext, Listing, BuyerRequest } from "./types";
 
 export interface DaftarPropertiSyncOptions {
   port?: number;
@@ -33,10 +33,45 @@ export interface WithRetries {
   (fn: () => Promise<void>, context: EventContext, errorHandling: any): Promise<void>;
 }
 
+export interface BuyerRequestWithRetries {
+  (fn: () => Promise<void>, context: BuyerRequestEventContext, errorHandling: any): Promise<void>;
+}
+
 export interface WriteBlockNumberToFile {
   (blockNumber: number): Promise<void>;
 }
 
 export interface HandleError {
   (error: Error, context: EventContext, errorHandling: any): Promise<void>;
+}
+
+export interface BuyerRequestHandleError {
+  (error: Error, context: BuyerRequestEventContext, errorHandling: any): Promise<void>;
+}
+
+export interface BuyerRequestSyncOptions {
+  port?: number;
+  address: string;
+  providerHost?: string;
+  abiVersion: number;
+  fetchAll?: boolean;
+  fromBlockNumber?: number;
+  fetchLastKnownBlockNumber?: () => Promise<number>;
+  buyerRequestCollection?: any;
+  buyerRequestHandler: (buyerRequest: BuyerRequest, event: any) => Promise<void>;
+  errorHandling: any;
+  broadcastOptions?: BroadcastOptions;
+  getBuyerRequestUpdatedAt?: GetBuyerRequestUpdatedAt;
+}
+
+export interface FetchBuyerRequestFromURL {
+  (event: BuyerRequestEventDetails, errorHandling: any): Promise<any>;
+}
+
+export interface BuyerRequestHandler {
+  (request: BuyerRequest, event: BuyerRequestEventDetails): Promise<void>;
+}
+
+export interface GetBuyerRequestUpdatedAt {
+  (requestId: string): Promise<string>;
 }

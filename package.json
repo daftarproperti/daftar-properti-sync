@@ -1,8 +1,8 @@
 {
     "name": "daftar-properti-sync",
     "version": "1.0.0",
-    "main": "js-generated/dpSync.js",
-    "types": ".d.ts/dpSync.d.ts",
+    "main": "js-generated/index.js",
+    "types": ".d.ts/index.d.ts",
     "dependencies": {
         "@hokify/agenda": "^6.3.0",
         "axios": "^1.7.9",
