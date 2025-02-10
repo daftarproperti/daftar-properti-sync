@@ -24,7 +24,7 @@ export async function shouldIgnore(listingId: string, offChainLink: string, getL
 
     const existingUpdatedAt = parseISO(listingUpdatedAt);
 
-    if (existingUpdatedAt && isAfter(existingUpdatedAt, eventUpdatedAt)) {
+    if (existingUpdatedAt && !isAfter(eventUpdatedAt, existingUpdatedAt)) {
         return true;
     }
 
