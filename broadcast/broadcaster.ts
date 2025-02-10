@@ -12,7 +12,7 @@ export class Broadcaster {
 
     agenda: any;
     broadcastCollection: any;
-    broker: any;
+    broker?: Broker;
 
     constructor(options: BroadcastOptions) {
         this.mongoURI = options.mongoURI;
@@ -27,7 +27,7 @@ export class Broadcaster {
             for (const failedBroadcast of failedBroadcasts) {
                 try {
                     console.log(`Retrying failed broadcast for event ID: ${failedBroadcast.event.id}`);
-                    await this.broker.retryBroadcast(failedBroadcast);
+                    await this.broker?.retryBroadcast(failedBroadcast);
                 } catch (error) {
                     console.error(`Error retrying broadcast for event ID: ${failedBroadcast.event.id}. error: `, error);
                 }
@@ -72,7 +72,7 @@ export class Broadcaster {
             console.log(`Processing broadcast job: ${JSON.stringify({ listing, event })}`);
 
             try {
-                await this.broker.broadcast(event, listing);
+                await this.broker?.broadcast(event, listing);
             } catch (error) {
                 console.error("Error in broadcast job: ", error);
             }
@@ -83,7 +83,9 @@ export class Broadcaster {
         this.broker = new Broker(this.agenda, this.broadcastCollection, this.brokerOptions);
 
         await this.agenda.start();
-        await this.retryFailedBroadcast();
+        // Retries sometimes cause account suspension, disable for now.
+        // TODO: Enable this when things are stabilized.
+        // await this.retryFailedBroadcast();
     }
 
     private sanitizeInput(input: any) {
