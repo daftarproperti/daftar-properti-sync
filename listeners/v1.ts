@@ -56,7 +56,7 @@ export async function fetchPastListingsV1(
     });
 
     await Promise.all(newListingTypedEvents.map(async (event) => {
-        console.debug(`received listing id: ${event.args.id} in block number: ${event.blockNumber}`);
+        console.debug(`received listing id: ${event.args.id} city id: ${event.args.cityId} in block number: ${event.blockNumber}`);
 
         // If getListingUpdatedAt is not defined, then do not ignore old events
         // This is done to avoid client immediately require to integrate this function
