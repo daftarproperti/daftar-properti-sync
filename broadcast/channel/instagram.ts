@@ -10,7 +10,7 @@ export function handleInstagram(channelOption: InstagramChannelOption) {
         try {
             const { listing, caption }: {listing: Listing; caption: string} = job.attrs.data;
             const postText = caption || listing.description;
-            console.log(`Start posting instagram to account ${driverOptions.instagramAccountId} for ${listing.listingIdStr}`);
+            console.log(`INSTAGRAM - Start posting instagram to account ${driverOptions.instagramAccountId} for ${listing.listingIdStr}`);
 
             // Reference: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/content-publishing
             const mediaContainerUrl = `${INSTAGRAM_API_BASE_URL}/${driverOptions.instagramAccountId}/media`;
@@ -32,6 +32,7 @@ export function handleInstagram(channelOption: InstagramChannelOption) {
                     }
 
                     try {
+                        console.log(`INSTAGRAM - Uploading media for listing ${listing.listingIdStr}: ${url}`);
                         const mediaContainerResponse = await fetch(`${mediaContainerUrl}?access_token=${driverOptions.accessToken}`,
                             {
                                 method: 'POST',
@@ -64,6 +65,7 @@ export function handleInstagram(channelOption: InstagramChannelOption) {
                         caption: postText
                     };
 
+                    console.log(`INSTAGRAM - Creating carousel container for listing ${listing.listingIdStr}`);
                     const carouselContainerResponse = await fetch(`${mediaContainerUrl}?access_token=${driverOptions.accessToken}`,
                         {
                             method: 'POST',
@@ -84,6 +86,8 @@ export function handleInstagram(channelOption: InstagramChannelOption) {
 
                 // Publish Carousel Container
                 const publishUrl = `${INSTAGRAM_API_BASE_URL}/${driverOptions.instagramAccountId}/media_publish`;
+
+                console.log(`INSTAGRAM - Publishing for listing ${listing.listingIdStr}`);
 
                 const publishResponse = await fetch(`${publishUrl}?access_token=${driverOptions.accessToken}`,
                     {
@@ -106,7 +110,7 @@ export function handleInstagram(channelOption: InstagramChannelOption) {
                 // If no images, post only the caption (Instagram does not support text-only posts via API)
                 console.warn("Instagram API does not support text-only posts. Please include at least one image.");
             }
-            console.log('Finish posting instagram for ' + listing.listingIdStr);
+            console.log('INSTAGRAM - Finish posting instagram for ' + listing.listingIdStr);
         } catch (error) {
             console.error("Failed to post to Instagram. ", error);
             throw error;
