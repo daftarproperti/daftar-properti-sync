@@ -122,7 +122,7 @@ export class Broker {
             }
 
             // Filter listing to post
-            if (!channelOption.filter(listing, event)) {
+            if (!await channelOption.filter(listing, event)) {
                 continue;
             }
 

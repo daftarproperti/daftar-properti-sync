@@ -10,7 +10,7 @@ export function handleInstagram(channelOption: InstagramChannelOption) {
         try {
             const { listing, caption }: {listing: Listing; caption: string} = job.attrs.data;
             const postText = caption || listing.description;
-            console.log('Start posting instagram for ' + listing.listingIdStr);
+            console.log(`Start posting instagram to account ${driverOptions.instagramAccountId} for ${listing.listingIdStr}`);
 
             // Reference: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/content-publishing
             const mediaContainerUrl = `${INSTAGRAM_API_BASE_URL}/${driverOptions.instagramAccountId}/media`;
