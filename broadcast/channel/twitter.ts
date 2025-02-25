@@ -3,7 +3,7 @@ import * as path from "path";
 import { DOWNLOAD_IMAGES_DIRECTORY, downloadImages } from "./downloadImage";
 import { TwitterChannelOption } from "./interface";
 
-const { TwitterApi } = require("twitter-api-v2");
+import { TwitterApi } from "twitter-api-v2";
 
 export function handleTwitter(channelOption: TwitterChannelOption) {
     const driverOptions = channelOption.driverOptions;
@@ -48,7 +48,7 @@ export function handleTwitter(channelOption: TwitterChannelOption) {
             if (mediaIds.length > 0) {
                 await twitterClient.v2.tweet({
                     text: tweetText,
-                    media: { media_ids: mediaIds }
+                    media: { media_ids: mediaIds as [string] | [string, string] | [string, string, string] | [string, string, string, string] }
                 });
             } else {
                 await twitterClient.v2.tweet({ text: tweetText });
