@@ -37,24 +37,26 @@ export class Broadcaster {
         }
     }
 
-    async broadcast(listing: Listing, event: any): Promise<void> {
+    async broadcast(listing: Listing, event: any): Promise<string> {
         if (!event) {
             console.log(`No event submitted, aborting broadcast`);
-            return;
+            return '';
         }
 
         if (event.operationType != 'ADD' && event.operationType != 'UPDATE') {
             console.log(`Invalid event type. Only ADD and UPDATE are allowed`);
-            return;
+            return '';
         }
 
         const sanitizedListing = this.sanitizeInput(listing);
         const sanitizedEvent = this.sanitizeInput(event);
 
         try {
-            await this.agenda.now('broadcast', { listing: sanitizedListing, event: sanitizedEvent });
+            const job = await this.agenda.now('broadcast', { listing: sanitizedListing, event: sanitizedEvent });
+            return job.attrs._id.toHexString();
         } catch (error) {
             console.error(`Error queueing broadcast job for block number: ${event.blockNumber}, listing id: ${listing.listingIdStr}. error:  `, error);
+            return '';
         }
     }
 
