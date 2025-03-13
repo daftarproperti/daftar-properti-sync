@@ -43,26 +43,42 @@ export async function fetchPastListingsV1(
     broadcaster: Broadcaster | null,
     getListingUpdatedAt: GetListingUpdatedAt | null
 ): Promise<void> {
-    const newListingEvents = blockNumber === 0
-        ? await contract.queryFilter('NewListing')
-        : await contract.queryFilter('NewListing', blockNumber);
+    const eventTypes = [
+        { name: 'NewListing', operationType: 'ADD' },
+        { name: 'ListingUpdated', operationType: 'UPDATE' },
+        { name: 'ListingDeleted', operationType: 'DELETE' },
+    ]
 
-    const newListingTypedEvents = newListingEvents.filter(isEventLog).map(event => {
-        const { id, cityId, offChainLink, dataHash, timestamp } = event.args as unknown as EventDetails;
-        return {
-            args: { id, cityId, offChainLink, dataHash, timestamp },
-            blockNumber: event.blockNumber,
-        };
-    });
+    let allEvents: Array<{
+        args: EventDetails;
+        blockNumber: number;
+        operationType: string;
+    }> = [];
 
-    await Promise.all(newListingTypedEvents.map(async (event) => {
-        console.debug(`received listing id: ${event.args.id} city id: ${event.args.cityId} in block number: ${event.blockNumber}`);
+    for (const eventType of eventTypes) {
+        const events = blockNumber === 0
+            ? await contract.queryFilter(eventType.name)
+            : await contract.queryFilter(eventType.name, blockNumber);
 
-        // If getListingUpdatedAt is not defined, then do not ignore old events
-        // This is done to avoid client immediately require to integrate this function
+        const typedEvents = events.filter(isEventLog).map(event => {
+            const { id, cityId, offChainLink, dataHash, timestamp } = event.args as unknown as EventDetails;
+            return {
+                args: { id, cityId, offChainLink, dataHash, timestamp, blockNumber: event.blockNumber },
+                blockNumber: event.blockNumber,
+                operationType: eventType.operationType
+            };
+        });
+
+        allEvents.push(...typedEvents);
+    }
+
+    allEvents.sort((a, b) => a.blockNumber - b.blockNumber);
+    for (const event of allEvents) {
+        console.debug(`Processing ${event.operationType} event for listing id: ${event.args.id} in block number: ${event.blockNumber}`);
+
         if (getListingUpdatedAt && await shouldIgnore(event.args.id, event.args.offChainLink, getListingUpdatedAt)) {
             console.debug(`Listing id: ${event.args.id} is not newer. Skipping update.`);
-            return;
+            continue;
         }
 
         const listing = await getListingFromURL({
@@ -83,13 +99,13 @@ export async function fetchPastListingsV1(
                     dataHash: event.args.dataHash,
                     timestamp: event.args.timestamp,
                     blockNumber: event.blockNumber,
-                    operationType: 'ADD',
+                    operationType: event.operationType,
                 };
 
                 await listingHandler(listing, eventObj);
                 await writeBlockNumberToFile(event.blockNumber);
-                // Only broadcast missed listing. Past listing should not be rebroadcasted
-                if (broadcaster && blockNumber !== 0) {
+
+                if (broadcaster && blockNumber !== 0 && event.operationType !== 'DELETE') {
                     broadcaster.broadcast(listing, eventObj);
                 }
             }, {
@@ -97,110 +113,7 @@ export async function fetchPastListingsV1(
                 offChainLink: event.args.offChainLink,
             }, errorHandling);
         }
-    }));
-
-    const updateListingEvents = blockNumber === 0
-        ? await contract.queryFilter('ListingUpdated')
-        : await contract.queryFilter('ListingUpdated', blockNumber);
-
-    const updateListingTypedEvents = updateListingEvents.filter(isEventLog).map(event => {
-        const { id, cityId, offChainLink, dataHash, timestamp } = event.args as unknown as EventDetails;
-        return {
-            args: { id, cityId, offChainLink, dataHash, timestamp },
-            blockNumber: event.blockNumber,
-        };
-    });
-
-    await Promise.all(updateListingTypedEvents.map(async (event) => {
-        console.debug(`received update for listing id: ${event.args.id} in block number: ${event.blockNumber}`);
-
-        if (getListingUpdatedAt && await shouldIgnore(event.args.id, event.args.offChainLink, getListingUpdatedAt)) {
-            console.debug(`Listing id: ${event.args.id} is not newer. Skipping update.`);
-            return;
-        }
-
-        const listing = await getListingFromURL({
-                id: event.args.id,
-                cityId: event.args.cityId,
-                offChainLink: event.args.offChainLink,
-                dataHash: event.args.dataHash,
-                timestamp: event.args.timestamp,
-                blockNumber: event.blockNumber,
-        }, errorHandling, strictHash);
-
-        if (listing) {
-            await withRetries(async () => {
-                const eventObj = {
-                    id: event.args.id,
-                    cityId: event.args.cityId,
-                    offChainLink: event.args.offChainLink,
-                    dataHash: event.args.dataHash,
-                    timestamp: event.args.timestamp,
-                    blockNumber: event.blockNumber,
-                    operationType: 'UPDATE'
-                };
-
-                await listingHandler(listing, eventObj);
-                await writeBlockNumberToFile(event.blockNumber);
-                // Only broadcast missed listing. Past listing should not be rebroadcasted
-                if (broadcaster && blockNumber !== 0) {
-                    broadcaster.broadcast(listing, eventObj);
-                }
-            }, {
-                blockNumber: event.blockNumber,
-                offChainLink: event.args.offChainLink,
-            }, errorHandling);
-        }
-    }));
-
-    const deleteListingEvents = blockNumber === 0
-        ? await contract.queryFilter('ListingDeleted')
-        : await contract.queryFilter('ListingDeleted', blockNumber);
-
-    const deleteListingTypedEvents = deleteListingEvents.filter(isEventLog).map(event => {
-        const { id, cityId, offChainLink, dataHash, timestamp } = event.args as unknown as EventDetails;
-        return {
-            args: { id, cityId, offChainLink, dataHash, timestamp },
-            blockNumber: event.blockNumber,
-        };
-    });
-
-    await Promise.all(deleteListingTypedEvents.map(async (event) => {
-        console.debug(`received deletion for listing id: ${event.args.id} in block number: ${event.blockNumber}`);
-
-        if (getListingUpdatedAt && await shouldIgnore(event.args.id, event.args.offChainLink, getListingUpdatedAt)) {
-            console.debug(`Listing id: ${event.args.id} is not newer. Skipping update.`);
-            return;
-        }
-
-        const listing = await getListingFromURL({
-            id: event.args.id,
-            cityId: event.args.cityId,
-            offChainLink: event.args.offChainLink,
-            dataHash: event.args.dataHash,
-            timestamp: event.args.timestamp,
-            blockNumber: event.blockNumber
-        }, errorHandling, strictHash);
-
-        if (listing) {
-            await withRetries(async () => {
-                await listingHandler(listing, {
-                    id: event.args.id,
-                    cityId: event.args.cityId,
-                    offChainLink: event.args.offChainLink,
-                    dataHash: event.args.dataHash,
-                    timestamp: event.args.timestamp,
-                    blockNumber: event.blockNumber,
-                    operationType: 'DELETE',
-                });
-
-                await writeBlockNumberToFile(event.blockNumber);
-            }, {
-                blockNumber: event.blockNumber,
-                offChainLink: event.args.offChainLink,
-            }, errorHandling);
-        }
-    }));
+    }
 }
 
 export function registerV1Listener(
