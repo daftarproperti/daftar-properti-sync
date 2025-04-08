@@ -32,6 +32,10 @@ export interface Listing {
   createdAt: string;
   updatedAt: string;
   registrant: Registrant;
+
+  // Indicates approval status of a Listing
+  // True when a Listing has been disapproved after being added to blockchain. False when it is just added or reapproved
+  isInvalidated: boolean;
 }
 
 export interface Coordinate {

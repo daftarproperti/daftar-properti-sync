@@ -3,6 +3,7 @@ import { ethers } from 'ethers';
 import { getListingFromURL, withRetries } from './fetch';
 import { handleErr } from './errorHandler';
 import { fetchPastListingsV1, registerV1Listener } from './listeners/v1';
+import { fetchPastListingsV3, registerV3Listener } from './listeners/v3';
 import { DaftarPropertiSyncOptions, GetListingUpdatedAt, ListingHandler } from './interfaces';
 import express from 'express';
 import fs from 'fs/promises';
@@ -93,7 +94,8 @@ export class DaftarPropertiSync {
 
     registerListeners() {
         const listenerMap: Record<number, RegisterListenerFunction> = {
-            1: registerV1Listener
+            1: registerV1Listener,
+            3: registerV3Listener
         };
 
         const registerListener = listenerMap[this.abiVersion];
@@ -136,6 +138,8 @@ export class DaftarPropertiSync {
                     // Save block number by default to Listing
                     listing.blockNumber = event.blockNumber;
 
+                    listing.isInvalidated = false;
+
                     const update = { $set: listing };
                     const options = { upsert: true };
 
@@ -147,6 +151,17 @@ export class DaftarPropertiSync {
                     }
                     break;
 
+                case 'INVALIDATE':
+                    const invalidateUpdate = { $set: { isInvalidated: true } };
+                    const invalidateResult = await listingCollection.updateOne(filter, invalidateUpdate);
+                    if (invalidateResult.modifiedCount > 0) {
+                        console.log(`Listing ${listing.listingId} invalidated in mongodb, block number ${event.blockNumber}`);
+                    } else {
+                        console.log(`Listing ${listing.listingId} not found for invalidation, block number ${event.blockNumber}`);
+                    }
+                    break;
+
+
                 default:
                     console.log(`Invalid operationType: ${event.operationType} for listing ${listing.listingId}, block number ${event.blockNumber}`);
             }
@@ -157,7 +172,8 @@ export class DaftarPropertiSync {
 
     async fetchPastListings(blockNumber: number = 0): Promise<void> {
         const fetchListingsMap: Record<number, FetchListingsFunction> = {
-            1: fetchPastListingsV1
+            1: fetchPastListingsV1,
+            3: fetchPastListingsV3
         };
 
         const fetchPastListingsFunc = fetchListingsMap[this.abiVersion];
