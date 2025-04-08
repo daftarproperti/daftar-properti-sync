@@ -43,7 +43,7 @@ async function main(): Promise<void> {
             strictHash: true,
             providerHost: `polygon-mainnet.infura.io/ws/v3/${INFURA_API_KEY}`,
             fromBlockNumber: 0,
-            abiVersion: 0,
+            abiVersion: 1,
             fetchLastKnownBlockNumber: fetchLastKnownBlockNumber,
             listingHandler: listingHandler,
             errorHandling: {

@@ -2,7 +2,6 @@ import { getContract } from './contract';
 import { ethers } from 'ethers';
 import { getListingFromURL, withRetries } from './fetch';
 import { handleErr } from './errorHandler';
-import { fetchPastListingsV0, registerV0Listener } from './listeners/v0';
 import { fetchPastListingsV1, registerV1Listener } from './listeners/v1';
 import { DaftarPropertiSyncOptions, GetListingUpdatedAt, ListingHandler } from './interfaces';
 import express from 'express';
@@ -94,7 +93,6 @@ export class DaftarPropertiSync {
 
     registerListeners() {
         const listenerMap: Record<number, RegisterListenerFunction> = {
-            0: registerV0Listener,
             1: registerV1Listener
         };
 
@@ -159,7 +157,6 @@ export class DaftarPropertiSync {
 
     async fetchPastListings(blockNumber: number = 0): Promise<void> {
         const fetchListingsMap: Record<number, FetchListingsFunction> = {
-            0: fetchPastListingsV0,
             1: fetchPastListingsV1
         };
 
