@@ -7,4 +7,5 @@ js-generated/
 # this package is installed from another package using npm install.
 # So workaround is don't add this directory to gitignore.
 # .d.ts
-*.js
+# Similarly don't add *.js to gitignore.
+# *.js
