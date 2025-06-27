@@ -10,7 +10,7 @@ export interface DaftarPropertiSyncOptions {
   fromBlockNumber?: number;
   fetchLastKnownBlockNumber?: () => Promise<number>;
   listingCollection?: any;
-  listingHandler: (listing: Listing, event: any) => Promise<void>;
+  listingHandler?: (listing: Listing, event: any) => Promise<void>;
   strictHash: boolean;
   errorHandling: any;
   broadcastOptions?: BroadcastOptions;
