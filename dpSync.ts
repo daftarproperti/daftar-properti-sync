@@ -11,6 +11,7 @@ import WebSocket from 'ws';
 import { EventDetails, FetchListingsFunction, Listing, RegisterListenerFunction } from './types';
 import { BroadcastOptions } from './broadcast/interface';
 import { Broadcaster } from './broadcast/broadcaster';
+import { Collection } from 'mongodb';
 
 const app = express();
 
@@ -28,7 +29,7 @@ export class DaftarPropertiSync {
     fromBlockNumber: number;
     fetchLastKnownBlockNumber: (() => Promise<number>) | null;
     getListingUpdatedAt: GetListingUpdatedAt | null;
-    listingCollection: any;
+    listingCollection: Collection<Listing> | null;
     listingHandler: ListingHandler;
     errorHandling: any;
     broadcaster: Broadcaster | null;
@@ -38,9 +39,9 @@ export class DaftarPropertiSync {
         this.port = options.port ?? 8080;
         this.address = options.address;
         this.strictHash = options.strictHash;
-   
+
         this.providerHost = options.providerHost || "";
-        
+
         this.provider = new ethers.WebSocketProvider(this.createWebSocket());
 
         this.abiVersion = options.abiVersion;
@@ -50,7 +51,7 @@ export class DaftarPropertiSync {
         this.fromBlockNumber = options.fromBlockNumber ?? 0;
         this.fetchLastKnownBlockNumber = options.fetchLastKnownBlockNumber ?? null;
         this.getListingUpdatedAt = options.getListingUpdatedAt ?? null;
-        this.listingCollection = options.listingCollection;
+        this.listingCollection = options.listingCollection ?? null;
         this.listingHandler = async (listing, event) => {
             await this.syncToMongo(this.listingCollection, listing, event);
             if (options.listingHandler && typeof options.listingHandler === 'function') {
@@ -74,8 +75,8 @@ export class DaftarPropertiSync {
             console.log('Reconnected to websocket');
         };
 
-        const webSocket = new WebSocket(`wss://`+this.providerHost);
-  
+        const webSocket = new WebSocket(`wss://` + this.providerHost);
+
         webSocket.onclose = () => {
             console.log("Websocket disconnected. Reconnecting . . .");
             setTimeout(() => {
@@ -84,11 +85,11 @@ export class DaftarPropertiSync {
                 reconnect();
             }, 3000);
         };
-  
+
         webSocket.onerror = (error) => {
             console.log("WebSocket error: ", error);
         };
-    
+
         return webSocket;
     }
 
@@ -196,6 +197,15 @@ export class DaftarPropertiSync {
         let blockNumber = await this.readBlockNumberFromFile();
         if (this.fetchLastKnownBlockNumber) {
             blockNumber = await this.fetchLastKnownBlockNumber();
+        } else if (this.listingCollection && !blockNumber) {
+            const listings = await this.listingCollection
+                .find({})
+                .sort({ _id: -1 })
+                .limit(1)
+                .toArray();
+            if (listings.length) {
+                blockNumber = listings[0].blockNumber;
+            }
         }
 
         await this.fetchPastListings(blockNumber);
@@ -221,7 +231,7 @@ export class DaftarPropertiSync {
         } catch (error) {
             if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
                 throw error;
-              }
+            }
         }
 
         this.lastProcessedBlock = blockNumber;

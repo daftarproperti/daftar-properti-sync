@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import fetch from 'node-fetch';
 import { handleErr, buyerRequestHandleErr } from './errorHandler';
 import { EventDetails, BuyerRequestEventDetails, EventContext, BuyerRequestEventContext } from './types';
+import { Long } from 'bson';
 
 export async function getListingFromURL(
     event: EventDetails,
@@ -22,7 +23,7 @@ export async function getListingFromURL(
         }
 
         const rawListing = JSON.parse(bufferListing.toString());
-        rawListing.listingId = BigInt(rawListing.listingIdStr);
+        rawListing.listingId = Long.fromString(rawListing.listingIdStr);
         return rawListing;
     }, { blockNumber: event.blockNumber, offChainLink: event.offChainLink }, errorHandling);
 }

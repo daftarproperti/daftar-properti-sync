@@ -6,9 +6,9 @@ const ABSOLUTE_ABI_PATH = path.join(__dirname, '..', 'abis');
 
 export function loadABI(name: string, version: number): any {
     console.log(ABSOLUTE_ABI_PATH);
-    const abiPath = path.join(ABSOLUTE_ABI_PATH, `${name}v${version}.json`);
+    const abiPath = path.join(ABSOLUTE_ABI_PATH, `${name}-v${version}.json`);
     if (!fs.existsSync(abiPath)) {
-        throw new Error(`ABI ${name} for version ${version} not found`);
+        throw new Error(`ABI ${name} for version ${version} not found (${abiPath})`);
     }
 
     const abi = fs.readFileSync(abiPath, 'utf-8');

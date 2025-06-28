@@ -1,4 +1,5 @@
 import { BroadcastOptions } from "./broadcast/interface";
+import { Collection } from "mongodb";
 import { EventDetails, BuyerRequestEventDetails, EventContext, BuyerRequestEventContext, Listing, BuyerRequest } from "./types";
 
 export interface DaftarPropertiSyncOptions {
@@ -9,7 +10,7 @@ export interface DaftarPropertiSyncOptions {
   fetchAll?: boolean;
   fromBlockNumber?: number;
   fetchLastKnownBlockNumber?: () => Promise<number>;
-  listingCollection?: any;
+  listingCollection?: Collection<Listing>;
   listingHandler?: (listing: Listing, event: any) => Promise<void>;
   strictHash: boolean;
   errorHandling: any;

@@ -5,6 +5,12 @@ export async function handleErr(
     context: { blockNumber: number; offChainLink: string },
     errorHandling: any
 ): Promise<void> {
+    if (!errorHandling) {
+        console.log('Error handling not found, logging error:');
+        console.log(error);
+        return;
+    }
+
     if (errorHandling.errorHandler) {
         await errorHandling.errorHandler(error, context);
         return;
