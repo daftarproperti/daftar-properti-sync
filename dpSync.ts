@@ -1,5 +1,5 @@
 import { getContract } from './contract';
-import { ethers } from 'ethers';
+import { ethers, WebSocketProvider } from 'ethers';
 import { getListingFromURL, withRetries } from './fetch';
 import { handleErr } from './errorHandler';
 import { fetchPastListingsV1, registerV1Listener } from './listeners/Listings-v1';
@@ -21,7 +21,7 @@ export class DaftarPropertiSync {
     port: number;
     address: string;
     strictHash: boolean;
-    provider: any;
+    provider: WebSocketProvider;
     providerHost: string;
     abiVersion: number;
     contract: any;
@@ -69,28 +69,13 @@ export class DaftarPropertiSync {
         }
     }
 
+    close() {
+        this.provider.destroy()
+    }
+
     createWebSocket() {
-        const reconnect = () => {
-            this.registerListeners();
-            console.log('Reconnected to websocket');
-        };
-
-        const webSocket = new WebSocket(`wss://` + this.providerHost);
-
-        webSocket.onclose = () => {
-            console.log("Websocket disconnected. Reconnecting . . .");
-            setTimeout(() => {
-                this.provider = new ethers.WebSocketProvider(this.createWebSocket());
-                this.contract = getContract('Listings', this.address, this.provider, this.abiVersion);
-                reconnect();
-            }, 3000);
-        };
-
-        webSocket.onerror = (error) => {
-            console.log("WebSocket error: ", error);
-        };
-
-        return webSocket;
+        // TODO: Handle disconnection properly.
+        return new WebSocket(`wss://` + this.providerHost);
     }
 
     registerListeners() {
