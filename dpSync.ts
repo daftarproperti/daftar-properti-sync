@@ -284,7 +284,7 @@ export function createInstance(options: DaftarPropertiSyncOptions): DaftarProper
 }
 
 function validateOptions(options: DaftarPropertiSyncOptions): void {
-    const requiredFields = ['providerHost', 'abiVersion', 'listingHandler'];
+    const requiredFields = ['providerHost', 'abiVersion'];
     for (const field of requiredFields) {
         if (!(field in options)) {
             throw new Error(`Required field '${field}' is missing in options.`);
